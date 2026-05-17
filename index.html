@@ -298,24 +298,26 @@ function buildCombos() {
       const legNames = {2:'Double',3:'Treble',4:'4-fold',5:'5-fold'};
 
       // Net EV per combo = sum of individual selection EVs
-      // Win EV £ = (winEV% - 100) / 100 * stake  (negative if book > fair)
-      // Place EV £ = (placeEV% - 100) / 100 * stake (positive if book > fair)
-      // If fair win not entered: win leg assumed -100% (full stake lost) as worst case
-      // If fair place not entered: place leg assumed 0 EV
+      // Each e/w bet = £stake on win + £stake on place = £stake*2 total
+      // Win EV £  = (winEV%  - 100) / 100 * S.stake
+      // Place EV £ = (placeEV% - 100) / 100 * S.stake
+      // Net per leg = win EV £ + place EV £
+      // Net per combo = sum of all active legs
       const selEVs = active.map(s => {
         const t = s.terms || 5;
         const wev = winEVpct(s.odds, s.fairWin);
         const pev = placeEVpct(s.odds, s.fairPlace, t);
-        // Win EV: use calculated if available, else -£stake (stake lost on win leg)
+        if (pev === null) return null; // need place fair at minimum
         const wEVp = wev !== null ? ((wev-100)/100) * S.stake : -S.stake;
-        // Place EV: use calculated if available, else null (skip)
-        const pEVp = pev !== null ? ((pev-100)/100) * S.stake : null;
-        if (pEVp !== null) return wEVp + pEVp;
-        return null; // need at least place fair to show EV
+        const pEVp = ((pev-100)/100) * S.stake;
+        return wEVp + pEVp;
       });
       let netEVpound = null;
       const validEVs = selEVs.filter(e => e !== null);
-      if (validEVs.length > 0) netEVpound = validEVs.reduce((a,e) => a+e, 0);
+      if (validEVs.length === active.length) {
+        // Only show EV if all active legs have fair prices
+        netEVpound = validEVs.reduce((a,e) => a+e, 0);
+      }
 
       combos.push({
         name: cur.map(s=>s.name).join(' + '),
@@ -440,7 +442,7 @@ function renderSels() {
           <div class="ev-strip" style="margin-top:8px;">
             ${evPill(wev,'Win')}
             ${evPill(pev,'Pl')}
-            ${(pev!==null)?`<span class="ev-pill ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'pos':'neg'}">Net: ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'+':''}£${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake)).toFixed(2)}</span>`:''}
+            ${(pev!==null)?`<span class="ev-pill ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'pos':'neg'}">Net/leg: ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'+':''}£${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake)).toFixed(2)}</span>`:''}
           </div>
         </div>
       </div>
