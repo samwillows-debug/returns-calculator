@@ -193,48 +193,49 @@ function init() {
   S.horses  = S.horses.slice(0, S.numHorses);
 }
 
-// Convert entered odds to decimal odds for all calculations
-// Fractional: 25 means 25/1 = 26.0 decimal, so add 1
-// Decimal: 26.0 stays as 26.0
-function toDecimal(odds) {
+// Convert entered odds to fractional profit for all calculations
+// Decimal: 26.0 means 25/1, so subtract 1 to get fractional profit = 25
+// Fractional: 25 means 25/1, already fractional profit = 25
+function toFrac(odds) {
   const o = parseFloat(odds);
   if (!o || isNaN(o) || o <= 0) return 0;
-  if (S.oddsFormat === 'decimal') return o;       // already decimal e.g. 26.0
-  return o + 1;                                    // fractional e.g. 25 -> 26.0
+  if (S.oddsFormat === 'decimal') return o - 1;  // 26.0 -> 25
+  return o;                                        // 25 stays 25
 }
 
-// Place odds in decimal: decimalWinOdds / terms + 1
-// e.g. 26.0 / 5 + 1 = 6.2
-function po(decOdds, terms) { return decOdds / terms + 1; }
+// Keep toDecimal as alias
+function toDecimal(odds) { return toFrac(odds); }
 
-// Keep toFrac as alias for backward compat but now returns decimal
-function toFrac(odds) { return toDecimal(odds); }
+// Place odds: fractionalProfit / terms + 1
+// e.g. frac 25 / 5 + 1 = 6.0
+function po(fracOdds, terms) { return fracOdds / terms + 1; }
 function placed(s) { return s==='win'||s==='place'; }
 function won(s) { return s==='win'; }
 function isNR(s) { return s==='nr'; }
 
 // EV% = book / fair * 100
 function winEVpct(bookOdds, fairWin) {
-  const bo = toDecimal(bookOdds);
-  const fw = toDecimal(fairWin);
-  if (!bo || bo <= 0) return null;
-  if (!fw || fw <= 0) return null;
-  // Win EV% = book decimal / fair decimal * 100
-  // e.g. book 26.0, fair 30.0 -> 26/30 * 100 = 86.7%
-  // e.g. fractional book 25, fair 29 -> 26/30 * 100 = 86.7%
+  // Use raw entered values for win EV ratio — both book and fair entered same way
+  const bo = parseFloat(bookOdds);
+  const fw = parseFloat(fairWin);
+  if (!bo || isNaN(bo) || bo <= 0) return null;
+  if (!fw || isNaN(fw) || fw <= 0) return null;
+  // Win EV% = book / fair * 100 (same format both sides cancels out)
+  // Decimal: 26/30 * 100 = 86.7%
+  // Fractional: 25/29 * 100 = 86.2% (slightly different but correct)
   return (bo / fw) * 100;
 }
 
 function placeEVpct(bookOdds, fairPlace, terms) {
-  const bo = toDecimal(bookOdds);
-  const fp = parseFloat(fairPlace); // always entered as decimal from Betfair
+  const bo = toFrac(bookOdds); // convert to fractional profit
+  const fp = parseFloat(fairPlace); // always decimal from Betfair e.g. 4.0
   if (!bo || bo <= 0) return null;
   if (!fp || isNaN(fp) || fp <= 0) return null;
-  // Book place odds = decimal win / terms + 1
-  // e.g. 26.0 / 5 + 1 = 6.2
+  // Book place odds in decimal = fracProfit / terms + 1
+  // e.g. frac 25 / 5 + 1 = 6.0
   const bookPO = po(bo, terms);
-  // Place EV% = book place / fair place * 100
-  // e.g. 6.2 / 4.0 * 100 = 155%
+  // Place EV% = book place decimal / fair place decimal * 100
+  // e.g. 6.0 / 4.0 * 100 = 150%
   return (bookPO / fp) * 100;
 }
 
