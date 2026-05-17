@@ -310,26 +310,35 @@ function buildCombos() {
 
       const legNames = {2:'Double',3:'Treble',4:'4-fold',5:'5-fold'};
 
-      // Net EV per combo = sum of individual selection EVs
-      // Each e/w bet = £stake on win + £stake on place = £stake*2 total
-      // Win EV £  = (winEV%  - 100) / 100 * S.stake
-      // Place EV £ = (placeEV% - 100) / 100 * S.stake
-      // Net per leg = win EV £ + place EV £
-      // Net per combo = sum of all active legs
-      const selEVs = active.map(s => {
-        const t = s.terms || 5;
-        const wev = winEVpct(s.odds, s.fairWin);
-        const pev = placeEVpct(s.odds, s.fairPlace, t);
-        if (pev === null) return null; // need place fair at minimum
-        const wEVp = wev !== null ? ((wev-100)/100) * S.stake : -S.stake;
-        const pEVp = ((pev-100)/100) * S.stake;
-        return wEVp + pEVp;
+      // CORRECT EV for a multiple: compound probabilities × compound odds
+      // Win treble: true_prob1 × true_prob2 × true_prob3 × compound_win_odds
+      // Place treble: true_place_prob1 × true_place_prob2 × true_place_prob3 × compound_place_odds
+      // True win prob = 1 / fair_win_decimal
+      // True place prob = 1 / fair_place_decimal
+      const allHaveEV = active.every(s => {
+        const t = s.terms||5;
+        return parseFloat(s.fairPlace) > 0;
       });
       let netEVpound = null;
-      const validEVs = selEVs.filter(e => e !== null);
-      if (validEVs.length === active.length) {
-        // Only show EV if all active legs have fair prices
-        netEVpound = validEVs.reduce((a,e) => a+e, 0);
+      if (allHaveEV) {
+        // Compound win probability and odds
+        const hasWinFair = active.every(s => parseFloat(s.fairWin) > 0);
+        let winTrebleEV = -S.stake; // default: full win stake lost if no fair win data
+        if (hasWinFair) {
+          const compWinProb = active.reduce((a,s) => a * (1/parseFloat(s.fairWin)), 1);
+          const compWinOdds = active.reduce((a,s) => a * (parseFloat(s.odds)-1), 1);
+          const winReturn = compWinProb * compWinOdds * S.stake;
+          winTrebleEV = winReturn - S.stake;
+        }
+        // Compound place probability and odds
+        const compPlaceProb = active.reduce((a,s) => {
+          const fp = parseFloat(s.fairPlace);
+          return a * (1/fp);
+        }, 1);
+        const compPlaceOdds = active.reduce((a,s) => a * (s.bookPO - 1), 1);
+        const placeReturn = compPlaceProb * compPlaceOdds * S.stake;
+        const placeTrebleEV = placeReturn - S.stake;
+        netEVpound = winTrebleEV + placeTrebleEV;
       }
 
       combos.push({
