@@ -323,26 +323,33 @@ function buildCombos() {
       let winTrebleEVpct = null;
       let placeTrebleEVpct = null;
       if (allHaveEV) {
-        // Compound win probability and odds
+        // Correct compound EV formula:
+        // Return = stake * product of (prob_i * odds_i) for each leg
+        // where prob = 1/fair_price, odds = book_price (full decimal)
+        // EV = Return - stake
+
+        // Place treble
+        // leg factor = (1/fair_place) * bookPO (decimal place odds)
+        const placeReturn = S.stake * active.reduce((a,s) => {
+          const fp = parseFloat(s.fairPlace);
+          return a * ((1/fp) * s.bookPO);
+        }, 1);
+        const placeTrebleEV = placeReturn - S.stake;
+        placeTrebleEVpct = (placeTrebleEV / S.stake) * 100;
+
+        // Win treble
         const hasWinFair = active.every(s => parseFloat(s.fairWin) > 0);
-        let winTrebleEV = -S.stake; // default: full win stake lost if no fair win data
+        let winTrebleEV = -S.stake;
         if (hasWinFair) {
-          const compWinProb = active.reduce((a,s) => a * (1/parseFloat(s.fairWin)), 1);
-          const compWinOdds = active.reduce((a,s) => a * (parseFloat(s.odds)-1), 1);
-          const winReturn = compWinProb * compWinOdds * S.stake;
+          // leg factor = (1/fair_win) * book_win (full decimal)
+          const winReturn = S.stake * active.reduce((a,s) => {
+            const fw = parseFloat(s.fairWin);
+            return a * ((1/fw) * parseFloat(s.odds));
+          }, 1);
           winTrebleEV = winReturn - S.stake;
         }
-        // Compound place probability and odds
-        const compPlaceProb = active.reduce((a,s) => {
-          const fp = parseFloat(s.fairPlace);
-          return a * (1/fp);
-        }, 1);
-        const compPlaceOdds = active.reduce((a,s) => a * (s.bookPO - 1), 1);
-        const placeReturn = compPlaceProb * compPlaceOdds * S.stake;
-        const placeTrebleEV = placeReturn - S.stake;
-        netEVpound = winTrebleEV + placeTrebleEV;
         winTrebleEVpct = (winTrebleEV / S.stake) * 100;
-        placeTrebleEVpct = (placeTrebleEV / S.stake) * 100;
+        netEVpound = winTrebleEV + placeTrebleEV;
       }
 
       combos.push({
