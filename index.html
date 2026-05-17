@@ -78,6 +78,17 @@
   .csv.dead { color:var(--red); }
   .csv.muted { color:var(--muted); }
   .summary-bar { padding:8px 16px; font-size:11px; color:var(--muted); }
+  .sel-summary { margin:0 16px 10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+  .sel-summary-table { width:100%; border-collapse:collapse; font-size:11px; }
+  .sel-summary-table th { padding:6px 8px; text-align:left; color:var(--muted); font-weight:500; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid var(--border); background:var(--surface2); white-space:nowrap; }
+  .sel-summary-table td { padding:5px 8px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--text); font-size:11px; }
+  .sel-summary-table tr:last-child td { border-bottom:none; }
+  .sel-summary-table td.label { color:var(--muted); font-size:10px; }
+  .sel-summary-table .g-row td { background:#1a3a5c22; }
+  .sel-summary-table .h-row td { }
+  .ss-pos { color:var(--green); font-weight:600; }
+  .ss-neg { color:var(--red); }
+  .ss-muted { color:var(--muted); }
   @media(max-width:380px){ .combo-stats{grid-template-columns:repeat(3,1fr);} .cols5{grid-template-columns:1fr 1fr 1fr;} .cols4{grid-template-columns:1fr 1fr;} }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -143,6 +154,7 @@
 <div class="sel-list" id="horse-list"></div>
 <div class="divider"></div>
 
+<div id="sel-summary"></div>
 <div class="metrics" id="metrics"></div>
 
 <div class="filter-bar">
@@ -547,10 +559,69 @@ function renderCombos(combos) {
   }).join('');
 }
 
+function renderSelSummary() {
+  const el = document.getElementById('sel-summary');
+  const allActive = [
+    ...S.golfers.map((g,i) => ({...g, type:'golfer', idx:i})),
+    ...S.horses.map((h,i) => ({...h, type:'horse', idx:i}))
+  ].filter(s => parseFloat(s.odds) > 0);
+
+  if (allActive.length === 0) { el.innerHTML = ''; return; }
+
+  const rows = allActive.map(s => {
+    const isG = s.type === 'golfer';
+    const terms = isG ? (s.terms||5) : (s.terms||5);
+    const frac = toFrac(s.odds);
+    const bookPO = frac > 0 ? po(frac, terms) : null;
+    const wev = winEVpct(s.odds, s.fairWin);
+    const pev = placeEVpct(s.odds, s.fairPlace, terms);
+    const wEVp = wev !== null ? ((wev-100)/100)*S.stake : null;
+    const pEVp = pev !== null ? ((pev-100)/100)*S.stake : null;
+    const netEV = (wEVp !== null && pEVp !== null) ? wEVp + pEVp : (pEVp !== null ? ((toFrac(s.odds)>0?-1:0)*S.stake + pEVp) : null);
+
+    const fairWinStr = parseFloat(s.fairWin) > 0 ? parseFloat(s.fairWin) : '—';
+    const fairPlStr = parseFloat(s.fairPlace) > 0 ? parseFloat(s.fairPlace) : '—';
+    const bookPOStr = bookPO ? bookPO.toFixed(1) : '—';
+
+    const wEvStr = wev !== null ? `<span class="${wev>=100?'ss-pos':'ss-neg'}">${wev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
+    const pEvStr = pev !== null ? `<span class="${pev>=100?'ss-pos':'ss-neg'}">${pev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
+    const netStr = netEV !== null ? `<span class="${netEV>=0?'ss-pos':'ss-neg'}">${netEV>=0?'+':''}£${netEV.toFixed(2)}</span>` : '<span class="ss-muted">—</span>';
+
+    const label = isG ? `${s.name}` : s.name;
+    const rowClass = isG ? 'g-row' : 'h-row';
+
+    return `<tr class="${rowClass}">
+      <td class="label">${label}${isG?` <span style="font-size:9px;color:var(--blue);">GOLF</span>`:''}</td>
+      <td>${s.odds} / ${fairWinStr}</td>
+      <td>${bookPOStr} / ${fairPlStr}</td>
+      <td>${wEvStr}</td>
+      <td>${pEvStr}</td>
+      <td>${netStr}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="sel-summary">
+    <table class="sel-summary-table">
+      <thead>
+        <tr>
+          <th>Selection</th>
+          <th>Win / Fair</th>
+          <th>Place / Fair</th>
+          <th>Win EV</th>
+          <th>Place EV</th>
+          <th>Net EV</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 function render() {
   init(); renderSels();
   allCombos=buildCombos();
   renderMetrics(allCombos);
+  renderSelSummary();
   renderCombos(allCombos);
 }
 
@@ -559,13 +630,13 @@ document.addEventListener('change', e=>{
   if(el.id==='num-golfers'){S.numGolfers=parseInt(el.value);render();return;}
   if(el.id==='num-horses'){S.numHorses=parseInt(el.value);render();return;}
   if(el.id==='bet-type'){S.betType=parseInt(el.value);render();return;}
-  if(el.id==='stake'){S.stake=parseFloat(el.value)||0.50;allCombos=buildCombos();renderMetrics(allCombos);renderCombos(allCombos);return;}
+  if(el.id==='stake'){S.stake=parseFloat(el.value)||0.50;allCombos=buildCombos();renderMetrics(allCombos);renderSelSummary();renderCombos(allCombos);return;}
   if(el.id==='odds-format'){S.oddsFormat=el.value;allCombos=buildCombos();renderMetrics(allCombos);renderCombos(allCombos);return;}
   const t=el.dataset.t, f=el.dataset.f, i=parseInt(el.dataset.i);
   if(!t||!f) return;
   const v=(f==='name'||f==='status')?el.value:parseFloat(el.value)||'';
   if(t==='golfer') S.golfers[i][f]=v; else S.horses[i][f]=v;
-  allCombos=buildCombos(); renderMetrics(allCombos); renderCombos(allCombos);
+  allCombos=buildCombos(); renderMetrics(allCombos); renderSelSummary(); renderCombos(allCombos);
   if(f!=='status') renderSels();
 });
 
