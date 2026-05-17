@@ -585,7 +585,12 @@ function renderSelSummary() {
 
     const wEvStr = wev !== null ? `<span class="${wev>=100?'ss-pos':'ss-neg'}">${wev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
     const pEvStr = pev !== null ? `<span class="${pev>=100?'ss-pos':'ss-neg'}">${pev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
-    const netStr = netEV !== null ? `<span class="${netEV>=0?'ss-pos':'ss-neg'}">${netEV>=0?'+':''}£${netEV.toFixed(2)}</span>` : '<span class="ss-muted">—</span>';
+    // Net EV% = (win EV£ + place EV£) / (stake * 2) * 100
+    // stake*2 = total e/w cost per selection
+    const wEVp2 = wev !== null ? ((wev-100)/100)*S.stake : -S.stake;
+    const pEVp2 = pev !== null ? ((pev-100)/100)*S.stake : null;
+    const netEVpct = pEVp2 !== null ? ((wEVp2 + pEVp2) / (S.stake*2)) * 100 : null;
+    const netStr = netEVpct !== null ? `<span class="${netEVpct>=0?'ss-pos':'ss-neg'}">${netEVpct>=0?'+':''}${netEVpct.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
 
     const label = isG ? `${s.name}` : s.name;
     const rowClass = isG ? 'g-row' : 'h-row';
@@ -609,7 +614,7 @@ function renderSelSummary() {
           <th>Place / Fair</th>
           <th>Win EV</th>
           <th>Place EV</th>
-          <th>Net EV</th>
+          <th>Net EV%</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
