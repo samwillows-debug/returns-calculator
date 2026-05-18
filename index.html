@@ -174,6 +174,34 @@ select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:
 .toast.err { border-color:var(--red); color:var(--red); }
 
 @media(max-width:380px){ .combo-stats{grid-template-columns:repeat(3,1fr);} .cols4{grid-template-columns:1fr 1fr;} }
+
+/* BATCH CARDS */
+.batch-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; }
+.batch-card.selected { border-color:var(--green); }
+.batch-card.deselected { opacity:0.45; }
+.batch-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.batch-num { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+.batch-ev { font-size:13px; font-weight:600; }
+.batch-horses { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
+.batch-horse { display:flex; justify-content:space-between; align-items:center; font-size:11px; padding:4px 8px; background:var(--surface2); border-radius:6px; }
+.batch-horse .bh-name { font-weight:500; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.batch-horse .bh-race { font-size:10px; color:var(--muted); margin-left:6px; white-space:nowrap; }
+.batch-horse .bh-ev { font-size:10px; margin-left:6px; white-space:nowrap; }
+.batch-horse .bh-ev.pos { color:var(--green); }
+.batch-horse .bh-ev.neg { color:var(--red); }
+.batch-foot { display:flex; gap:6px; }
+.batch-foot button { flex:1; padding:8px; border-radius:6px; border:none; font-family:var(--font); font-size:11px; font-weight:600; cursor:pointer; }
+.btn-batch-save { background:var(--green); color:#000; }
+.btn-batch-load { background:var(--surface2); color:var(--muted); }
+.btn-batch-toggle { background:transparent; border:1px solid var(--border) !important; color:var(--muted); }
+.batch-summary { font-size:11px; color:var(--muted); padding:4px 8px; background:var(--surface2); border-radius:6px; margin-bottom:8px; display:flex; gap:10px; flex-wrap:wrap; }
+.batch-summary span { white-space:nowrap; }
+.batch-summary .bev { font-weight:600; }
+.batch-summary .bev.pos { color:var(--green); }
+.batch-summary .bev.neg { color:var(--red); }
+.batch-save-all { margin:8px 16px 0; }
+.batch-save-all button { width:100%; padding:12px; background:var(--blue); color:#fff; border:none; border-radius:8px; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -236,8 +264,32 @@ select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:
     <button class="rotate-mode-btn active" id="mode-plev" onclick="setRotateMode('plev')">Place EV bias</button>
     <button class="rotate-mode-btn" id="mode-rand" onclick="setRotateMode('rand')">Pure random</button>
     <button class="btn-rotate" onclick="rotateHorses()">🔀 Rotate</button>
-    <button class="btn-clear-pool" onclick="clearPool()">✕ Clear</button>
+    <button class="btn-rotate" style="background:var(--purple);color:#fff;" onclick="openBatchView()">📋 Batches</button>
+    <button class="btn-clear-pool" onclick="clearPool()">✕</button>
   </div>
+</div>
+
+<!-- BATCH VIEW -->
+<div class="history-view" id="batch-view">
+  <div class="history-header">
+    <h2>📋 Batch Slips</h2>
+    <button class="btn-back" onclick="closeBatchView()">← Back</button>
+  </div>
+  <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+    <div style="font-size:11px;color:var(--muted);" id="batch-info">Generate multiple slip options at once, then save the ones you want to place.</div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Batches</div>
+      <select id="batch-count" style="width:60px;padding:5px 6px;font-size:12px;">
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+        <option value="6" selected>6</option>
+        <option value="8">8</option>
+      </select>
+      <button class="btn-rotate" onclick="generateBatches()">⚡ Generate</button>
+    </div>
+  </div>
+  <div id="batch-list" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;margin-top:6px;"></div>
 </div>
 
 <!-- SELECTIONS -->
@@ -321,6 +373,22 @@ select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:
 
 <div class="toast" id="toast"></div>
 
+
+<!-- SETTLE MODAL -->
+<div class="modal-overlay" id="settle-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="settle-title">Edit Results</h2>
+      <button class="modal-close" onclick="closeSettleModal()">✕</button>
+    </div>
+    <div class="modal-body" id="settle-body"></div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeSettleModal()">Cancel</button>
+      <button class="btn-parse" onclick="saveSettled()">Save Results</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
 const S = {
@@ -344,10 +412,11 @@ const dH = [
   {name:'Horse 7',odds:'',fairWin:'',fairPlace:'',terms:5,status:'tbd'},
 ];
 let allCombos = [];
-let parsedHorses = [];   // last parsed batch for preview
-let horsePool = [];      // full pool stored between rotations
-let poolLoadedAt = null; // timestamp of last load
-let rotateMode = 'plev'; // 'plev' = Place EV weighted, 'rand' = pure random
+let parsedHorses = [];
+let horsePool = [];
+let poolLoadedAt = null;
+let rotateMode = 'plev';
+let settlingSlipId = null; // which slip is being settled
 
 // ─── MATHS ────────────────────────────────────────────────────────────────────
 function init() {
@@ -359,221 +428,207 @@ function init() {
   S.horses = S.horses.slice(0, S.numHorses);
 }
 function toFrac(odds) {
-  const o = parseFloat(odds);
-  if (!o||isNaN(o)||o<=0) return 0;
+  const o=parseFloat(odds);
+  if(!o||isNaN(o)||o<=0) return 0;
   return S.oddsFormat==='decimal' ? o-1 : o;
 }
 function toDecimal(odds) { return toFrac(odds); }
-function po(frac, terms) { return frac/terms+1; }
+function po(frac,terms) { return frac/terms+1; }
 function placed(s) { return s==='win'||s==='place'; }
 function won(s) { return s==='win'; }
 function isNR(s) { return s==='nr'; }
-
-function winEVpct(bookOdds, fairWin) {
-  const bo=parseFloat(bookOdds), fw=parseFloat(fairWin);
+function winEVpct(bookOdds,fairWin) {
+  const bo=parseFloat(bookOdds),fw=parseFloat(fairWin);
   if(!bo||isNaN(bo)||bo<=0||!fw||isNaN(fw)||fw<=0) return null;
   return (bo/fw)*100;
 }
-function placeEVpct(bookOdds, fairPlace, terms) {
-  const bo=toFrac(bookOdds), fp=parseFloat(fairPlace);
+function placeEVpct(bookOdds,fairPlace,terms) {
+  const bo=toFrac(bookOdds),fp=parseFloat(fairPlace);
   if(!bo||bo<=0||!fp||isNaN(fp)||fp<=0) return null;
   return (po(bo,terms)/fp)*100;
 }
 
+// ─── SETTLE CALCULATOR ───────────────────────────────────────────────────────
+// Given a slip with results set on each horse/golfer, calculate actual return.
+function calcActualReturn(slip) {
+  const stake = slip.stake;
+  const betType = slip.betType;
+  const allSels = [
+    ...(slip.golfers||[]).map(g=>({...g,type:'golfer',fracOdds:parseFloat(g.odds)-1,bookPO:parseFloat(g.odds)>0?po(parseFloat(g.odds)-1,g.terms||5):0,hasOdds:parseFloat(g.odds)>0})),
+    ...(slip.horses||[]).map(h=>({...h,type:'horse',fracOdds:parseFloat(h.odds)-1,bookPO:parseFloat(h.odds)>0?po(parseFloat(h.odds)-1,h.terms||5):0,hasOdds:parseFloat(h.odds)>0}))
+  ].filter(s=>s.hasOdds);
+
+  let totalReturn = 0;
+  const n = betType;
+
+  function comb(start,cur) {
+    if(cur.length===n) {
+      if((slip.numGolfers||0)>=2 && cur.filter(s=>s.type==='golfer').length>=2) return;
+      const active = cur.filter(s=>!isNR(s.status));
+      if(active.length<2) return; // NR void down to single — no payout
+      const lostAny = active.some(s=>s.status==='lose'||s.status==='tbd');
+      const placedAll = active.every(s=>placed(s.status));
+      const wonAll = active.every(s=>won(s.status));
+      if(lostAny) return; // dead leg
+      // Place leg: all must have placed
+      if(placedAll) {
+        const placeOC = active.reduce((a,s)=>a*(s.bookPO-1),1);
+        totalReturn += placeOC * stake + stake; // returns stake+profit
+      }
+      // Win leg: all must have won
+      if(wonAll) {
+        const winOC = active.reduce((a,s)=>a*s.fracOdds,1);
+        totalReturn += winOC * stake + stake;
+      }
+      return;
+    }
+    for(let i=start;i<allSels.length;i++) comb(i+1,[...cur,allSels[i]]);
+  }
+  comb(0,[]);
+  return totalReturn;
+}
+
 // ─── PARSER ───────────────────────────────────────────────────────────────────
-// Columns: Runner(0) EV(1) Odds(2) N.Odds(3) WinFair(4) PlaceFair(5) WinEV(6) PlaceEV(7) Places(8) Terms(9) Race(10)
 function parseTrackerText(raw) {
-  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-  const horses = [];
-  for (const line of lines) {
-    const cols = line.split('\t');
-    if (cols.length < 9) continue;
-    const c0 = cols[0].trim().toLowerCase();
-    if (c0==='runner'||c0===''||c0==='-') continue;
-    const name = cols[0].trim();
-    const ev = parseFloat(cols[1]);
-    const odds = parseFloat(cols[2]);
-    const winFair = parseFloat(cols[4]);
-    const placeFair = parseFloat(cols[5]);
-    const places = parseInt(cols[8]);
-    const termsRaw = cols[9] ? cols[9].trim() : '1/5';
-    const race = cols[10] ? cols[10].trim() : '';
-    if (!name||isNaN(odds)||odds<=0||isNaN(ev)) continue;
-    let terms = 5;
-    if (termsRaw.includes('4')) terms=4;
-    else if (termsRaw.includes('3')) terms=3;
-    horses.push({
-      name, ev, odds,
-      fairWin: isNaN(winFair)?'':String(winFair),
-      fairPlace: isNaN(placeFair)?'':String(placeFair),
-      places: isNaN(places)?3:places,
-      terms, race,
-      status:'tbd'
-    });
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  const horses=[];
+  for(const line of lines) {
+    const cols=line.split('\t');
+    if(cols.length<9) continue;
+    const c0=cols[0].trim().toLowerCase();
+    if(c0==='runner'||c0===''||c0==='-') continue;
+    const name=cols[0].trim();
+    const ev=parseFloat(cols[1]);
+    const odds=parseFloat(cols[2]);
+    const winFair=parseFloat(cols[4]);
+    const placeFair=parseFloat(cols[5]);
+    const places=parseInt(cols[8]);
+    const termsRaw=cols[9]?cols[9].trim():'1/5';
+    const race=cols[10]?cols[10].trim():'';
+    if(!name||isNaN(odds)||odds<=0||isNaN(ev)) continue;
+    let terms=5;
+    if(termsRaw.includes('4')) terms=4;
+    else if(termsRaw.includes('3')) terms=3;
+    horses.push({name,ev,odds,fairWin:isNaN(winFair)?'':String(winFair),fairPlace:isNaN(placeFair)?'':String(placeFair),places:isNaN(places)?3:places,terms,race,status:'tbd'});
   }
   horses.sort((a,b)=>b.ev-a.ev);
   return horses;
 }
 
-// ─── ROTATE LOGIC ─────────────────────────────────────────────────────────────
-// Weighted random: each horse gets a weight based on its Place EV rank.
-// Rank 1 (best Place EV) = weight N, rank 2 = N-1, ... rank N = 1.
-// Pure random: all equal weight.
-// We also ensure we never repeat the exact same set as the current selection.
-
-function weightedSample(pool, n, mode) {
-  if (pool.length <= n) return [...pool];
-  const ranked = [...pool];
-  if (mode === 'plev') {
-    // Sort by Place EV descending to assign weights
-    ranked.sort((a,b) => {
-      const pa = parseFloat(a.fairPlace)>0 ? po(a.odds-1, a.terms)/parseFloat(a.fairPlace) : 0;
-      const pb = parseFloat(b.fairPlace)>0 ? po(b.odds-1, b.terms)/parseFloat(b.fairPlace) : 0;
-      return pb - pa;
+// ─── ROTATE ───────────────────────────────────────────────────────────────────
+function weightedSample(pool,n,mode) {
+  if(pool.length<=n) return [...pool];
+  const ranked=[...pool];
+  if(mode==='plev') {
+    ranked.sort((a,b)=>{
+      const pa=parseFloat(a.fairPlace)>0?po(a.odds-1,a.terms)/parseFloat(a.fairPlace):0;
+      const pb=parseFloat(b.fairPlace)>0?po(b.odds-1,b.terms)/parseFloat(b.fairPlace):0;
+      return pb-pa;
     });
   }
-  const weights = ranked.map((_, i) => mode==='plev' ? (ranked.length - i) : 1);
-  const totalWeight = weights.reduce((a,w)=>a+w,0);
-
-  const selected = [];
-  const available = ranked.map((h,i)=>({h,w:weights[i],i}));
-
-  for (let pick=0; pick<n && available.length>0; pick++) {
-    let r = Math.random() * available.reduce((a,x)=>a+x.w,0);
-    let idx = 0;
-    for (let j=0; j<available.length; j++) {
-      r -= available[j].w;
-      if (r <= 0) { idx=j; break; }
-    }
-    selected.push(available[idx].h);
-    available.splice(idx,1);
+  const weights=ranked.map((_,i)=>mode==='plev'?(ranked.length-i):1);
+  const available=ranked.map((h,i)=>({h,w:weights[i]}));
+  const selected=[];
+  const usedRaces=new Set(); // prevent 2 horses from same race
+  for(let pick=0;pick<n&&available.length>0;pick++) {
+    // Filter out horses whose race is already used
+    const eligible=available.filter(x=>!x.h.race||!usedRaces.has(x.h.race));
+    const pool2=eligible.length>0?eligible:available; // fallback if all races clash
+    let r=Math.random()*pool2.reduce((a,x)=>a+x.w,0);
+    let idx=0;
+    for(let j=0;j<pool2.length;j++){r-=pool2[j].w;if(r<=0){idx=j;break;}}
+    const chosen=pool2[idx];
+    selected.push(chosen.h);
+    if(chosen.h.race) usedRaces.add(chosen.h.race);
+    const globalIdx=available.indexOf(chosen);
+    if(globalIdx>-1) available.splice(globalIdx,1);
   }
   return selected;
 }
 
 function rotateHorses() {
-  if (horsePool.length === 0) { showToast('No pool loaded', 'err'); return; }
-  const n = S.numHorses;
-  if (horsePool.length < n) { showToast(`Pool only has ${horsePool.length} horses`, 'err'); return; }
-
-  // Try up to 10 times to get a different set from current
-  const currentNames = new Set(S.horses.map(h=>h.name));
+  if(!horsePool.length){showToast('No pool loaded','err');return;}
+  const n=S.numHorses;
+  if(horsePool.length<n){showToast(`Pool only has ${horsePool.length} horses`,'err');return;}
+  const currentNames=new Set(S.horses.map(h=>h.name));
   let newSet;
-  for (let attempt=0; attempt<10; attempt++) {
-    newSet = weightedSample(horsePool, n, rotateMode);
-    const newNames = new Set(newSet.map(h=>h.name));
-    const overlap = [...currentNames].filter(x=>newNames.has(x)).length;
-    if (overlap < n) break; // at least one different horse
+  for(let attempt=0;attempt<10;attempt++){
+    newSet=weightedSample(horsePool,n,rotateMode);
+    const overlap=[...currentNames].filter(x=>new Set(newSet.map(h=>h.name)).has(x)).length;
+    if(overlap<n) break;
   }
-
-  S.horses = newSet.map(h=>({...h, status:'tbd'}));
-  render();
-  updatePoolBar();
-  showToast('🔀 Rotated!', 'ok');
+  S.horses=newSet.map(h=>({...h,status:'tbd'}));
+  render(); updatePoolBar(); showToast('🔀 Rotated!','ok');
 }
 
 function setRotateMode(mode) {
-  rotateMode = mode;
-  document.getElementById('mode-plev').classList.toggle('active', mode==='plev');
-  document.getElementById('mode-rand').classList.toggle('active', mode==='rand');
+  rotateMode=mode;
+  document.getElementById('mode-plev').classList.toggle('active',mode==='plev');
+  document.getElementById('mode-rand').classList.toggle('active',mode==='rand');
 }
 
 function clearPool() {
-  horsePool = [];
-  poolLoadedAt = null;
-  updatePoolBar();
-  showToast('Pool cleared', 'ok');
+  horsePool=[]; poolLoadedAt=null; updatePoolBar(); showToast('Pool cleared','ok');
 }
 
 function updatePoolBar() {
-  const bar = document.getElementById('pool-bar');
-  const info = document.getElementById('pool-info');
-  if (horsePool.length === 0) {
-    bar.classList.remove('has-pool');
-    return;
-  }
+  const bar=document.getElementById('pool-bar');
+  const info=document.getElementById('pool-info');
+  if(!horsePool.length){bar.classList.remove('has-pool');return;}
   bar.classList.add('has-pool');
-  const age = poolLoadedAt ? Math.round((Date.now()-poolLoadedAt)/60000) : 0;
-  const ageStr = age < 1 ? 'just now' : `${age}m ago`;
-  info.innerHTML = `Pool: <strong>${horsePool.length} horses</strong> &nbsp;·&nbsp; showing ${S.numHorses} &nbsp;·&nbsp; <span class="pool-age">loaded ${ageStr}</span>`;
+  const age=poolLoadedAt?Math.round((Date.now()-poolLoadedAt)/60000):0;
+  const ageStr=age<1?'just now':`${age}m ago`;
+  info.innerHTML=`Pool: <strong>${horsePool.length} horses</strong> &nbsp;·&nbsp; showing ${S.numHorses} &nbsp;·&nbsp; <span class="pool-age">loaded ${ageStr}</span>`;
 }
 
 // ─── PICK NOW MODAL ───────────────────────────────────────────────────────────
 function openPickModal() {
-  document.getElementById('pick-count-label').textContent = S.numHorses;
+  document.getElementById('pick-count-label').textContent=S.numHorses;
   document.getElementById('pick-modal').classList.add('open');
-  document.getElementById('paste-area').value = '';
-  document.getElementById('parse-result').innerHTML = '';
-  document.getElementById('load-btn').style.display = 'none';
-  parsedHorses = [];
+  document.getElementById('paste-area').value='';
+  document.getElementById('parse-result').innerHTML='';
+  document.getElementById('load-btn').style.display='none';
+  parsedHorses=[];
   setTimeout(()=>document.getElementById('paste-area').focus(),100);
 }
-function closePickModal() { document.getElementById('pick-modal').classList.remove('open'); }
+function closePickModal(){document.getElementById('pick-modal').classList.remove('open');}
 
 function parsePaste() {
-  const raw = document.getElementById('paste-area').value;
-  if (!raw.trim()) {
-    document.getElementById('parse-result').innerHTML='<p class="parse-err">Nothing pasted yet.</p>';
-    return;
-  }
-  const all = parseTrackerText(raw);
-  parsedHorses = all; // store all for loading into pool
-  const el = document.getElementById('parse-result');
-
-  if (all.length === 0) {
-    el.innerHTML='<p class="parse-err">⚠ Could not parse any horses. Make sure you\'ve copied the full table including headers.</p>';
-    document.getElementById('load-btn').style.display='none';
-    return;
-  }
-
-  const show = all.slice(0, S.numHorses);
-  const rest = all.slice(S.numHorses);
-
-  const makeRow = (h,i,label) => {
-    const plEV = parseFloat(h.fairPlace)>0 ? (po(h.odds-1,h.terms)/parseFloat(h.fairPlace)*100) : null;
-    const plEvStr = plEV ? ` · PlEV ${plEV.toFixed(0)}%` : '';
-    return `<div class="parse-row">
-      <span class="pr-name">${i+1}. ${h.name}</span>
-      <span class="pr-odds">${h.odds}</span>
-      <span class="pr-ev">EV ${h.ev.toFixed(1)}%${plEvStr}</span>
-      <span style="font-size:10px;color:var(--muted);">${h.race}</span>
-    </div>`;
+  const raw=document.getElementById('paste-area').value;
+  if(!raw.trim()){document.getElementById('parse-result').innerHTML='<p class="parse-err">Nothing pasted yet.</p>';return;}
+  const all=parseTrackerText(raw);
+  parsedHorses=all;
+  const el=document.getElementById('parse-result');
+  if(!all.length){el.innerHTML='<p class="parse-err">⚠ Could not parse any horses. Make sure you\'ve copied the full table including headers.</p>';document.getElementById('load-btn').style.display='none';return;}
+  const show=all.slice(0,S.numHorses),rest=all.slice(S.numHorses);
+  const makeRow=(h,i)=>{
+    const plEV=parseFloat(h.fairPlace)>0?(po(h.odds-1,h.terms)/parseFloat(h.fairPlace)*100):null;
+    const plEvStr=plEV?` · PlEV ${plEV.toFixed(0)}%`:'';
+    return `<div class="parse-row"><span class="pr-name">${i+1}. ${h.name}</span><span class="pr-odds">${h.odds}</span><span class="pr-ev">EV ${h.ev.toFixed(1)}%${plEvStr}</span><span style="font-size:10px;color:var(--muted);">${h.race}</span></div>`;
   };
-
-  let html = `<div class="parse-preview">
-    <div class="parse-preview-title">${all.length} horses parsed · top ${show.length} will load first</div>
-    ${show.map((h,i)=>makeRow(h,i,'initial')).join('')}`;
-
-  if (rest.length > 0) {
-    html += `<div class="parse-section-label">Also in pool (rotate to use)</div>
-    ${rest.map((h,i)=>makeRow(h,show.length+i,'pool')).join('')}`;
-  }
-  html += '</div>';
-  el.innerHTML = html;
-  document.getElementById('load-btn').style.display = 'block';
+  let html=`<div class="parse-preview"><div class="parse-preview-title">${all.length} horses parsed · top ${show.length} load first</div>${show.map((h,i)=>makeRow(h,i)).join('')}`;
+  if(rest.length) html+=`<div class="parse-section-label">Also in pool (rotate to use)</div>${rest.map((h,i)=>makeRow(h,show.length+i)).join('')}`;
+  el.innerHTML=html+'</div>';
+  document.getElementById('load-btn').style.display='block';
 }
 
 function loadParsed() {
-  if (!parsedHorses.length) return;
-  horsePool = parsedHorses.map(h=>({...h}));
-  poolLoadedAt = Date.now();
-  S.oddsFormat = 'decimal';
-  document.getElementById('odds-format').value = 'decimal';
-  S.numHorses = 7;
-  document.getElementById('num-horses').value = 7;
-  // Load initial selection: top numHorses by Place EV from pool
-  const initial = weightedSample(horsePool, S.numHorses, 'plev');
-  S.horses = initial.map(h=>({...h, status:'tbd'}));
+  if(!parsedHorses.length) return;
+  horsePool=parsedHorses.map(h=>({...h}));
+  poolLoadedAt=Date.now();
+  S.oddsFormat='decimal';
+  document.getElementById('odds-format').value='decimal';
+  S.numHorses=7;
+  document.getElementById('num-horses').value=7;
+  S.horses=weightedSample(horsePool,S.numHorses,'plev').map(h=>({...h,status:'tbd'}));
   S.golfers.forEach(g=>{g.status='tbd';});
-  closePickModal();
-  render();
-  updatePoolBar();
-  showToast(`✓ Pool: ${horsePool.length} horses loaded`, 'ok');
+  closePickModal(); render(); updatePoolBar();
+  showToast(`✓ Pool: ${horsePool.length} horses loaded`,'ok');
 }
 
-// ─── SAVE / DB ────────────────────────────────────────────────────────────────
+// ─── SAVE MODAL ───────────────────────────────────────────────────────────────
 function openSaveModal() {
-  const combos=allCombos, comboCount=expectedCombos(combos);
+  const combos=allCombos,comboCount=expectedCombos(combos);
   const cost=comboCount*S.stake*2;
   const withEV=combos.filter(c=>c.netEVpound!==null&&!isNaN(c.netEVpound));
   const totalNetEV=withEV.reduce((a,c)=>a+c.netEVpound,0);
@@ -593,8 +648,9 @@ function openSaveModal() {
   document.getElementById('save-cost-actual').value='';
   document.getElementById('save-modal').classList.add('open');
 }
-function closeSaveModal() { document.getElementById('save-modal').classList.remove('open'); }
+function closeSaveModal(){document.getElementById('save-modal').classList.remove('open');}
 
+// ─── DATABASE ─────────────────────────────────────────────────────────────────
 let db=null;
 function openDB() {
   return new Promise((resolve,reject)=>{
@@ -612,9 +668,17 @@ function openDB() {
 async function dbAdd(r){const d=await openDB();return new Promise((res,rej)=>{const tx=d.transaction('slips','readwrite');tx.objectStore('slips').add(r).onsuccess=e=>res(e.target.result);tx.onerror=rej;});}
 async function dbGetAll(){const d=await openDB();return new Promise((res,rej)=>{const req=d.transaction('slips','readonly').objectStore('slips').getAll();req.onsuccess=e=>res(e.target.result.reverse());req.onerror=rej;});}
 async function dbDelete(id){const d=await openDB();return new Promise((res,rej)=>{const tx=d.transaction('slips','readwrite');tx.objectStore('slips').delete(id).onsuccess=res;tx.onerror=rej;});}
+async function dbUpdate(record){
+  const d=await openDB();
+  return new Promise((res,rej)=>{
+    const tx=d.transaction('slips','readwrite');
+    tx.objectStore('slips').put(record).onsuccess=e=>res(e.target.result);
+    tx.onerror=rej;
+  });
+}
 
 async function saveSlip() {
-  const combos=allCombos, comboCount=expectedCombos(combos);
+  const combos=allCombos,comboCount=expectedCombos(combos);
   const cost=comboCount*S.stake*2;
   const withEV=combos.filter(c=>c.netEVpound!==null&&!isNaN(c.netEVpound));
   const totalNetEV=withEV.reduce((a,c)=>a+c.netEVpound,0);
@@ -625,70 +689,246 @@ async function saveSlip() {
   try {
     await dbAdd({ts:Date.now(),betType:S.betType,betTypeLabel,stake:S.stake,
       numGolfers:S.numGolfers,numHorses:S.numHorses,
-      golfers:JSON.parse(JSON.stringify(S.golfers)),horses:JSON.parse(JSON.stringify(S.horses)),
-      comboCount,cost:costActual,totalEV:totalNetEV,totalEVpct,note,status:'pending',actualReturn:null,profit:null});
-    closeSaveModal();
-    showToast('✓ Slip saved!','ok');
-  } catch(e) { showToast('⚠ Save failed','err'); }
+      golfers:JSON.parse(JSON.stringify(S.golfers)),
+      horses:JSON.parse(JSON.stringify(S.horses)),
+      comboCount,cost:costActual,totalEV:totalNetEV,totalEVpct,
+      note,status:'pending',actualReturn:null,profit:null});
+    closeSaveModal(); showToast('✓ Slip saved!','ok');
+  } catch(e){showToast('⚠ Save failed','err');}
+}
+
+// ─── SETTLE MODAL ─────────────────────────────────────────────────────────────
+function openSettleModal(id, slip) {
+  settlingSlipId = id;
+  document.getElementById('settle-title').textContent = `Edit Results · ${slip.betTypeLabel} e/w`;
+  const allSels = [...(slip.golfers||[]),...(slip.horses||[])].filter(h=>parseFloat(h.odds)>0);
+  const isGolfer = s => (slip.golfers||[]).some(g=>g.name===s.name);
+
+  document.getElementById('settle-body').innerHTML = `
+    <p>Set the result for each selection. Returns are calculated automatically.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+      ${allSels.map((s,i)=>{
+        const terms=s.terms||5;
+        const frac=parseFloat(s.odds)-1;
+        const bookPO=frac>0?po(frac,terms):null;
+        const tag=isGolfer(s)?`<span style="font-size:9px;color:var(--blue);margin-left:4px;">GOLF</span>`:'';
+        return `<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${s.name}${tag}</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;">Win: ${s.odds} &nbsp;·&nbsp; Pl: ${bookPO?bookPO.toFixed(2)+'dec':'—'} &nbsp;·&nbsp; 1/${terms}</div>
+          </div>
+          <select id="settle-sel-${i}" style="width:110px;flex-shrink:0;" onchange="previewSettle()">
+            <option value="tbd" ${s.status==='tbd'?'selected':''}>? Pending</option>
+            <option value="win" ${s.status==='win'?'selected':''}>✓ Won</option>
+            <option value="place" ${s.status==='place'?'selected':''}>P Placed</option>
+            <option value="lose" ${s.status==='lose'?'selected':''}>✗ Lost</option>
+            <option value="nr" ${s.status==='nr'?'selected':''}>NR Void</option>
+          </select>
+        </div>`;
+      }).join('')}
+    </div>
+    <div id="settle-preview" style="background:var(--surface2);border-radius:8px;padding:12px;"></div>
+    <div style="margin-top:12px;">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Override actual return (£)</div>
+      <input type="number" id="settle-override" step="0.01" placeholder="Leave blank to use calculated" style="width:100%;">
+    </div>`;
+
+  document.getElementById('settle-modal').classList.add('open');
+  previewSettle();
+}
+
+function closeSettleModal(){document.getElementById('settle-modal').classList.remove('open');settlingSlipId=null;}
+
+async function previewSettle() {
+  if(settlingSlipId===null) return;
+  const slips=await dbGetAll();
+  const slip=slips.find(s=>s.id===settlingSlipId);
+  if(!slip) return;
+
+  // Read current dropdown values
+  const allSels=[...(slip.golfers||[]),...(slip.horses||[])].filter(h=>parseFloat(h.odds)>0);
+  const updated=allSels.map((s,i)=>{
+    const el=document.getElementById(`settle-sel-${i}`);
+    return {...s, status:el?el.value:s.status};
+  });
+
+  // Rebuild slip with updated statuses
+  let gi=0, hi=0;
+  const updatedGolfers=(slip.golfers||[]).map(g=>{
+    if(!parseFloat(g.odds)) return g;
+    return {...g,status:updated[gi++].status};
+  });
+  const updatedHorses=(slip.horses||[]).map(h=>{
+    if(!parseFloat(h.odds)) return h;
+    return {...h,status:updated[(slip.golfers||[]).filter(g=>parseFloat(g.odds)>0).length+hi++].status};
+  });
+
+  const tempSlip={...slip,golfers:updatedGolfers,horses:updatedHorses};
+  const actualReturn=calcActualReturn(tempSlip);
+  const profit=actualReturn-slip.cost;
+  const allSettled=updated.every(s=>s.status!=='tbd');
+
+  document.getElementById('settle-preview').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Staked</div>
+        <div style="font-size:16px;font-weight:600;">£${slip.cost.toFixed(2)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Return</div>
+        <div style="font-size:16px;font-weight:600;color:${actualReturn>0?'var(--green)':'var(--muted)'};">£${actualReturn.toFixed(2)}</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;">Profit</div>
+        <div style="font-size:16px;font-weight:600;color:${profit>0?'var(--green)':profit<0?'var(--red)':'var(--muted)'}">${profit>=0?'+':''}£${profit.toFixed(2)}</div>
+      </div>
+    </div>
+    ${!allSettled?`<div style="font-size:10px;color:var(--amber);text-align:center;margin-top:8px;">⚠ Some selections still pending</div>`:''}`;
+}
+
+async function saveSettled() {
+  if(settlingSlipId===null) return;
+  const slips=await dbGetAll();
+  const slip=slips.find(s=>s.id===settlingSlipId);
+  if(!slip) return;
+
+  const allSels=[...(slip.golfers||[]),...(slip.horses||[])].filter(h=>parseFloat(h.odds)>0);
+  const updated=allSels.map((s,i)=>{
+    const el=document.getElementById(`settle-sel-${i}`);
+    return {...s,status:el?el.value:s.status};
+  });
+
+  let gi=0,hi=0;
+  const gCount=(slip.golfers||[]).filter(g=>parseFloat(g.odds)>0).length;
+  const updatedGolfers=(slip.golfers||[]).map(g=>{
+    if(!parseFloat(g.odds)) return g;
+    return {...g,status:updated[gi++].status};
+  });
+  const updatedHorses=(slip.horses||[]).map(h=>{
+    if(!parseFloat(h.odds)) return h;
+    return {...h,status:updated[gCount+hi++].status};
+  });
+
+  const tempSlip={...slip,golfers:updatedGolfers,horses:updatedHorses};
+  const calculatedReturn=calcActualReturn(tempSlip);
+  const overrideVal=parseFloat(document.getElementById('settle-override').value);
+  const actualReturn=isNaN(overrideVal)?calculatedReturn:overrideVal;
+  const profit=actualReturn-slip.cost;
+  const allSettled=updated.every(s=>s.status!=='tbd');
+
+  const updatedSlip={
+    ...slip,
+    golfers:updatedGolfers,
+    horses:updatedHorses,
+    actualReturn,
+    profit,
+    status:allSettled?'settled':'pending',
+  };
+
+  try {
+    await dbUpdate(updatedSlip);
+    closeSettleModal();
+    await renderHistory();
+    showToast(allSettled?`✓ Settled: ${profit>=0?'+':''}£${profit.toFixed(2)}`:'✓ Results saved','ok');
+  } catch(e){showToast('⚠ Save failed','err');}
 }
 
 // ─── HISTORY ──────────────────────────────────────────────────────────────────
-async function openHistory() { document.getElementById('history-view').classList.add('open'); await renderHistory(); }
-function closeHistory() { document.getElementById('history-view').classList.remove('open'); }
+async function openHistory(){document.getElementById('history-view').classList.add('open');await renderHistory();}
+function closeHistory(){document.getElementById('history-view').classList.remove('open');}
+
 async function renderHistory() {
   const slips=await dbGetAll();
   const totalCost=slips.reduce((a,s)=>a+(s.cost||0),0);
   const totalEV=slips.reduce((a,s)=>a+(s.totalEV||0),0);
+  const settled=slips.filter(s=>s.status==='settled');
+  const totalProfit=settled.reduce((a,s)=>a+(s.profit||0),0);
+  const totalReturn=settled.reduce((a,s)=>a+(s.actualReturn||0),0);
+
   document.getElementById('history-stats').innerHTML=`
     <div class="hstat"><div class="hsl">Slips</div><div class="hsv neutral">${slips.length}</div></div>
     <div class="hstat"><div class="hsl">Staked</div><div class="hsv neutral">£${totalCost.toFixed(2)}</div></div>
-    <div class="hstat"><div class="hsl">Total EV</div><div class="hsv ${totalEV>=0?'pos':'neg'}">${totalEV>=0?'+':''}£${totalEV.toFixed(2)}</div></div>`;
-  if (!slips.length) { document.getElementById('history-slips').innerHTML='<div class="no-history">No slips saved yet.<br>Hit SAVE after filling in a slip.</div>'; return; }
+    <div class="hstat"><div class="hsl">Total EV</div><div class="hsv ${totalEV>=0?'pos':'neg'}">${totalEV>=0?'+':''}£${totalEV.toFixed(2)}</div></div>
+    ${settled.length?`
+    <div class="hstat"><div class="hsl">Settled</div><div class="hsv neutral">${settled.length}</div></div>
+    <div class="hstat"><div class="hsl">Returned</div><div class="hsv neutral">£${totalReturn.toFixed(2)}</div></div>
+    <div class="hstat"><div class="hsl">P&L</div><div class="hsv ${totalProfit>=0?'pos':'neg'}">${totalProfit>=0?'+':''}£${totalProfit.toFixed(2)}</div></div>`:''}`;
+
+  if(!slips.length){document.getElementById('history-slips').innerHTML='<div class="no-history">No slips saved yet.<br>Hit SAVE after filling in a slip.</div>';return;}
+
   document.getElementById('history-slips').innerHTML=slips.map(s=>{
     const d=new Date(s.ts);
     const dateStr=d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     const allH=[...(s.golfers||[]),...(s.horses||[])].filter(h=>parseFloat(h.odds)>0);
+    const isSettled=s.status==='settled';
     const evCls=(s.totalEV||0)>=0?'pos':'neg';
-    return `<div class="slip-card">
+    const profitCls=(s.profit||0)>=0?'pos':'neg';
+
+    // Per-horse result chips
+    const resultIcon={win:'✓',place:'P',lose:'✗',nr:'NR',tbd:'?'};
+    const resultColor={win:'var(--green)',place:'var(--amber)',lose:'var(--red)',nr:'var(--purple)',tbd:'var(--muted)'};
+    const horseChips=allH.map(h=>`<span class="horse-chip" style="color:${resultColor[h.status]||'var(--muted)'};">${resultIcon[h.status]||'?'} ${h.name}</span>`).join('');
+
+    return `<div class="slip-card" style="${isSettled?'border-color:'+((s.profit||0)>=0?'#00c87a33':'#ff4f4f33'):''}">
       <div class="slip-top">
-        <div><div class="slip-label">${s.betTypeLabel} e/w · ${s.comboCount} combos · £${(s.cost||0).toFixed(2)}</div>
-        ${s.note?`<div class="slip-note">${s.note}</div>`:''}
-        <div class="slip-date">${dateStr}</div></div>
-        <div style="text-align:right;"><div class="smv ${evCls}" style="font-size:14px;font-weight:600;">${s.totalEV!=null?(s.totalEV>=0?'+':'')+'£'+s.totalEV.toFixed(2):'—'}</div>
-        <div style="font-size:10px;color:var(--muted);">${s.totalEVpct!=null?(s.totalEVpct>=0?'+':'')+s.totalEVpct.toFixed(1)+'% EV':''}</div></div>
+        <div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+            <div class="slip-label">${s.betTypeLabel} e/w · ${s.comboCount} combos</div>
+            <span style="font-size:9px;padding:2px 6px;border-radius:10px;background:${isSettled?((s.profit||0)>=0?'#00c87a22':'#ff4f4f22'):'var(--surface2)'};color:${isSettled?((s.profit||0)>=0?'var(--green)':'var(--red)'):'var(--muted)'};">${isSettled?'SETTLED':'PENDING'}</span>
+          </div>
+          ${s.note?`<div class="slip-note">${s.note}</div>`:''}
+          <div class="slip-date">${dateStr}</div>
+        </div>
+        <div style="text-align:right;">
+          ${isSettled?`
+            <div style="font-size:16px;font-weight:600;color:${(s.profit||0)>=0?'var(--green)':'var(--red)'};">${(s.profit||0)>=0?'+':''}£${(s.profit||0).toFixed(2)}</div>
+            <div style="font-size:10px;color:var(--muted);">£${(s.actualReturn||0).toFixed(2)} returned</div>`:`
+            <div style="font-size:14px;font-weight:600;color:${evCls==='pos'?'var(--green)':'var(--red)'};">${s.totalEV!=null?(s.totalEV>=0?'+':'')+'£'+s.totalEV.toFixed(2):'—'}</div>
+            <div style="font-size:10px;color:var(--muted);">EV · £${(s.cost||0).toFixed(2)} staked</div>`}
+        </div>
       </div>
-      <div class="slip-horses">${allH.map(h=>`<span class="horse-chip">${h.name}</span>`).join('')}</div>
+      <div class="slip-horses">${horseChips}</div>
       <div class="slip-actions">
+        <button class="btn-load" style="background:var(--amber);color:#000;" onclick="openSettleForId(${s.id})">✏ Edit Results</button>
         <button class="btn-load" onclick="loadSlip(${s.id})">↩ Load</button>
         <button class="btn-del" onclick="deleteSlip(${s.id})">Delete</button>
       </div>
     </div>`;
   }).join('');
 }
+
+async function openSettleForId(id) {
+  const slips=await dbGetAll();
+  const slip=slips.find(s=>s.id===id);
+  if(!slip) return;
+  openSettleModal(id,slip);
+}
+
 async function loadSlip(id) {
   const slips=await dbGetAll();
   const slip=slips.find(s=>s.id===id);
   if(!slip) return;
-  S.numGolfers=slip.numGolfers; S.numHorses=slip.numHorses;
-  S.betType=slip.betType; S.stake=slip.stake;
+  S.numGolfers=slip.numGolfers;S.numHorses=slip.numHorses;
+  S.betType=slip.betType;S.stake=slip.stake;
   S.golfers=JSON.parse(JSON.stringify(slip.golfers));
   S.horses=JSON.parse(JSON.stringify(slip.horses));
   document.getElementById('num-golfers').value=S.numGolfers;
   document.getElementById('num-horses').value=S.numHorses;
   document.getElementById('bet-type').value=S.betType;
   document.getElementById('stake').value=S.stake;
-  closeHistory(); render(); showToast('↩ Slip loaded','ok');
+  closeHistory();render();showToast('↩ Slip loaded','ok');
 }
+
 async function deleteSlip(id) {
   if(!confirm('Delete this slip?')) return;
-  await dbDelete(id); await renderHistory(); showToast('Deleted','ok');
+  await dbDelete(id);await renderHistory();showToast('Deleted','ok');
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
 let toastTimer;
-function showToast(msg,type='ok') {
+function showToast(msg,type='ok'){
   const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${type} show`;
+  t.textContent=msg;t.className=`toast ${type} show`;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>t.classList.remove('show'),2500);
 }
@@ -699,9 +939,9 @@ function buildCombos() {
     ...S.golfers.map((g,i)=>({...g,type:'golfer',idx:i,fracOdds:toDecimal(g.odds),bookPO:toDecimal(g.odds)>0?po(toDecimal(g.odds),g.terms||5):0,hasOdds:toDecimal(g.odds)>0})),
     ...S.horses.map((h,i)=>({...h,type:'horse',idx:i,fracOdds:toDecimal(h.odds),bookPO:toDecimal(h.odds)>0?po(toDecimal(h.odds),h.terms||5):0,hasOdds:toDecimal(h.odds)>0}))
   ].filter(s=>s.hasOdds);
-  const n=S.betType, combos=[];
-  function comb(start,cur) {
-    if(cur.length===n) {
+  const n=S.betType,combos=[];
+  function comb(start,cur){
+    if(cur.length===n){
       if(S.numGolfers>=2&&cur.filter(s=>s.type==='golfer').length>=2) return;
       const active=cur.filter(s=>!isNR(s.status));
       const nrCount=cur.filter(s=>isNR(s.status)).length;
@@ -724,7 +964,7 @@ function buildCombos() {
       if(allHaveWEV) compWinEV=active.reduce((a,s)=>a*(winEVpct(s.odds,s.fairWin)/100),1)*100;
       const allHaveEV=active.every(s=>parseFloat(s.fairPlace)>0);
       let netEVpound=null,winTrebleEVpct=null,placeTrebleEVpct=null;
-      if(allHaveEV) {
+      if(allHaveEV){
         const placeReturn=S.stake*active.reduce((a,s)=>a*((1/parseFloat(s.fairPlace))*s.bookPO),1);
         const placeTrebleEV=placeReturn-S.stake;
         placeTrebleEVpct=(placeTrebleEV/S.stake)*100;
@@ -748,13 +988,12 @@ function buildCombos() {
 function sc(s){return s==='win'?'status-win':s==='place'?'status-place':s==='lose'?'status-lose':s==='nr'?'status-nr':'';}
 function evPill(pct,label){if(pct===null)return '';return `<span class="ev-pill ${pct>=100?'pos':'neg'}">${label}: ${pct.toFixed(1)}%</span>`;}
 
-function renderSels() {
+function renderSels(){
   document.getElementById('glabel').textContent=`${S.numGolfers} Golfer${S.numGolfers!==1?'s':''}`;
   document.getElementById('hlabel').textContent=`${S.numHorses} Horse${S.numHorses!==1?'s':''}`;
   document.getElementById('golfer-section').style.display=S.numGolfers===0?'none':'';
   document.getElementById('golfer-list').innerHTML=S.golfers.map((g,i)=>{
-    const terms=g.terms||5,places=g.places||10;
-    const fracOdds=toDecimal(g.odds),bookPO=fracOdds>0?po(fracOdds,terms):null;
+    const terms=g.terms||5,places=g.places||10,fracOdds=toDecimal(g.odds),bookPO=fracOdds>0?po(fracOdds,terms):null;
     const wev=winEVpct(g.odds,g.fairWin||null),pev=placeEVpct(g.odds,g.fairPlace||null,terms);
     return `<div class="sel-row is-golfer ${sc(g.status)}">
       <div class="sel-top"><input type="text" value="${g.name}" data-t="golfer" data-i="${i}" data-f="name"><span class="type-tag golfer">GOLF</span></div>
@@ -763,10 +1002,10 @@ function renderSels() {
         <div class="field"><label>Win Fair</label><input type="number" value="${g.fairWin||''}" min="1" step="1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairWin"></div>
         <div class="field"><label>Place Fair</label><input type="number" value="${g.fairPlace||''}" min="1" step="0.1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairPlace"></div>
         <div class="field"><label>Result</label><select data-t="golfer" data-i="${i}" data-f="status">
-          <option value="tbd" ${g.status==='tbd'?'selected':''}>?</option>
-          <option value="win" ${g.status==='win'?'selected':''}>W Won</option>
-          <option value="place" ${g.status==='place'?'selected':''}>P Place</option>
-          <option value="lose" ${g.status==='lose'?'selected':''}>X Lost</option>
+          <option value="tbd" ${g.status==='tbd'?'selected':''}>? Pending</option>
+          <option value="win" ${g.status==='win'?'selected':''}>✓ Won</option>
+          <option value="place" ${g.status==='place'?'selected':''}>P Placed</option>
+          <option value="lose" ${g.status==='lose'?'selected':''}>✗ Lost</option>
         </select></div>
       </div>
       <div class="fields-row cols3">
@@ -783,7 +1022,6 @@ function renderSels() {
       <div class="ev-strip">${evPill(wev,'Win EV')}${evPill(pev,'Place EV')}</div>
     </div>`;
   }).join('');
-
   document.getElementById('horse-list').innerHTML=S.horses.map((h,i)=>{
     const terms=h.terms||5,fracOdds=toDecimal(h.odds),bookPO=fracOdds>0?po(fracOdds,terms):null;
     const wev=winEVpct(h.odds,h.fairWin||null),pev=placeEVpct(h.odds,h.fairPlace||null,terms);
@@ -804,10 +1042,10 @@ function renderSels() {
       </div>
       <div class="fields-row cols3">
         <div class="field"><label>Result</label><select data-t="horse" data-i="${i}" data-f="status">
-          <option value="tbd" ${h.status==='tbd'?'selected':''}>?</option>
-          <option value="win" ${h.status==='win'?'selected':''}>W Won</option>
-          <option value="place" ${h.status==='place'?'selected':''}>P Place</option>
-          <option value="lose" ${h.status==='lose'?'selected':''}>X Lost</option>
+          <option value="tbd" ${h.status==='tbd'?'selected':''}>? Pending</option>
+          <option value="win" ${h.status==='win'?'selected':''}>✓ Won</option>
+          <option value="place" ${h.status==='place'?'selected':''}>P Placed</option>
+          <option value="lose" ${h.status==='lose'?'selected':''}>✗ Lost</option>
           <option value="nr" ${h.status==='nr'?'selected':''}>NR Void</option>
         </select></div>
         <div class="field"><label>Pl odds</label><div style="font-size:12px;padding-top:8px;color:${h.status!=='lose'&&h.status!=='nr'?'var(--green)':'var(--muted)'};">${plPill}</div></div>
@@ -826,7 +1064,7 @@ function expectedCombos(ac){
   return nCr(t,n)-nCr(S.numGolfers,2)*nCr(S.numHorses,n-2);
 }
 
-function renderMetrics(combos) {
+function renderMetrics(combos){
   const cc=expectedCombos(combos),cost=cc*S.stake*2;
   const placeRet=combos.reduce((a,c)=>a+c.placeRet,0);
   const winRet=combos.reduce((a,c)=>a+c.winRet,0);
@@ -915,10 +1153,175 @@ function renderSelSummary(){
 }
 
 function render(){
-  init(); renderSels();
+  init();renderSels();
   allCombos=buildCombos();
-  renderMetrics(allCombos); renderSelSummary(); renderCombos(allCombos);
+  renderMetrics(allCombos);renderSelSummary();renderCombos(allCombos);
   updatePoolBar();
+}
+
+
+// ─── BATCH VIEW ───────────────────────────────────────────────────────────────
+let generatedBatches = []; // [{horses, included, netEV, cost}]
+
+function openBatchView() {
+  if(!horsePool.length){showToast('No pool loaded','err');return;}
+  document.getElementById('batch-view').classList.add('open');
+  if(!generatedBatches.length) generateBatches();
+}
+function closeBatchView(){document.getElementById('batch-view').classList.remove('open');}
+
+function calcBatchEV(horses) {
+  // Quick compound place EV for a set of horses (treble basis using S.betType)
+  const active=horses.filter(h=>parseFloat(h.fairPlace)>0&&parseFloat(h.odds)>0);
+  if(active.length<2) return null;
+  // Average per-leg place EV across all legs
+  const legEVs=active.map(h=>{
+    const frac=parseFloat(h.odds)-1;
+    const bookPO=po(frac,h.terms||5);
+    return bookPO/parseFloat(h.fairPlace);
+  });
+  // Compound EV as geometric mean of leg factors raised to betType
+  const avg=legEVs.reduce((a,v)=>a+v,0)/legEVs.length;
+  const netEVpct=(Math.pow(avg,S.betType)-1)*100;
+  return netEVpct;
+}
+
+function generateBatches() {
+  if(!horsePool.length){showToast('No pool loaded','err');return;}
+  const count=parseInt(document.getElementById('batch-count').value)||6;
+  const n=S.numHorses;
+  generatedBatches=[];
+  const usedSets=[];
+
+  for(let b=0;b<count;b++) {
+    let horses;
+    // Try up to 15 times to get a reasonably different set
+    for(let attempt=0;attempt<15;attempt++){
+      horses=weightedSample(horsePool,n,rotateMode);
+      const nameSet=new Set(horses.map(h=>h.name));
+      const isDuplicate=usedSets.some(s=>s.size===nameSet.size&&[...nameSet].every(x=>s.has(x)));
+      const maxOverlap=Math.floor(n*0.6); // allow up to 60% overlap
+      const tooSimilar=usedSets.some(s=>[...nameSet].filter(x=>s.has(x)).length>maxOverlap);
+      if(!isDuplicate&&!tooSimilar) break;
+    }
+    usedSets.push(new Set(horses.map(h=>h.name)));
+    const netEV=calcBatchEV(horses);
+    const cost=expectedCombosFromCount(S.numGolfers,n,S.betType)*S.stake*2;
+    generatedBatches.push({horses:horses.map(h=>({...h,status:'tbd'})),included:true,netEV,cost});
+  }
+  renderBatches();
+  document.getElementById('batch-info').textContent=`${count} batches · ${generatedBatches[0]?.horses.length||n} horses each · no same-race clashes`;
+}
+
+function expectedCombosFromCount(numG,numH,betType){
+  const t=numG+numH,n=betType;
+  if(t<n) return 0;
+  if(numG<2) return nCr(t,n);
+  return nCr(t,n)-nCr(numG,2)*nCr(numH,n-2);
+}
+
+function toggleBatch(idx){
+  generatedBatches[idx].included=!generatedBatches[idx].included;
+  renderBatches();
+}
+
+function renderBatches(){
+  const betTypeLabel={2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType]||'Multiples';
+  const comboCount=expectedCombosFromCount(S.numGolfers,S.numHorses,S.betType);
+  const cost=comboCount*S.stake*2;
+  const included=generatedBatches.filter(b=>b.included);
+
+  document.getElementById('batch-list').innerHTML=generatedBatches.map((b,idx)=>{
+    const ev=b.netEV;
+    const evStr=ev!=null?(ev>=0?'+':'')+ev.toFixed(1)+'%':'—';
+    const evCls=ev!=null?(ev>=0?'pos':'neg'):'muted';
+    return `<div class="batch-card ${b.included?'selected':'deselected'}">
+      <div class="batch-header">
+        <span class="batch-num">Slip ${idx+1} ${b.included?'✓':''}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="batch-ev ${evCls}">PlEV ${evStr}</span>
+          <span style="font-size:11px;color:var(--muted);">£${cost.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="batch-horses">
+        ${b.horses.map(h=>{
+          const frac=parseFloat(h.odds)-1;
+          const bookPO=frac>0?po(frac,h.terms||5):null;
+          const pev=parseFloat(h.fairPlace)>0&&bookPO?(bookPO/parseFloat(h.fairPlace)*100):null;
+          const pevStr=pev!=null?pev.toFixed(0)+'%':'—';
+          const pevCls=pev!=null?(pev>=100?'pos':'neg'):'muted';
+          return `<div class="batch-horse">
+            <span class="bh-name">${h.name}</span>
+            <span class="bh-race">${h.race||''}</span>
+            <span class="bh-ev ${pevCls}">${h.odds} · PlEV ${pevStr}</span>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="batch-foot">
+        <button class="btn-batch-toggle" onclick="toggleBatch(${idx})">${b.included?'Exclude':'Include'}</button>
+        <button class="btn-batch-load" onclick="loadBatch(${idx})">Load →</button>
+        <button class="btn-batch-save" onclick="saveBatch(${idx})">Save ✓</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Save all button
+  const saveAllEl=document.getElementById('batch-save-all')||document.createElement('div');
+  saveAllEl.id='batch-save-all';
+  saveAllEl.className='batch-save-all';
+  saveAllEl.innerHTML=included.length>0
+    ?`<button onclick="saveAllIncluded()">Save ${included.length} slip${included.length!==1?'s':''} to history</button>`
+    :'';
+  if(!document.getElementById('batch-save-all')) document.getElementById('batch-list').after(saveAllEl);
+}
+
+function loadBatch(idx){
+  const b=generatedBatches[idx];
+  S.horses=b.horses.map(h=>({...h,status:'tbd'}));
+  closeBatchView(); render(); showToast('↩ Batch loaded','ok');
+}
+
+async function saveBatch(idx){
+  const b=generatedBatches[idx];
+  const tempHorses=b.horses;
+  const betTypeLabel={2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType]||'Multiples';
+  const comboCount=expectedCombosFromCount(S.numGolfers,tempHorses.length,S.betType);
+  const cost=comboCount*S.stake*2;
+
+  // Calculate EV using same logic as main calculator
+  const tempSels=[
+    ...S.golfers.filter(g=>parseFloat(g.odds)>0),
+    ...tempHorses.filter(h=>parseFloat(h.odds)>0)
+  ];
+  const withFairPlace=tempSels.filter(s=>parseFloat(s.fairPlace)>0);
+  let totalEV=null,totalEVpct=null;
+  if(withFairPlace.length===tempSels.length&&tempSels.length>0){
+    // Approximate: sum of per-combo net EVs
+    totalEVpct=b.netEV;
+    totalEV=totalEVpct!=null?(totalEVpct/100)*cost:null;
+  }
+
+  try{
+    await dbAdd({ts:Date.now(),betType:S.betType,betTypeLabel,stake:S.stake,
+      numGolfers:S.numGolfers,numHorses:tempHorses.length,
+      golfers:JSON.parse(JSON.stringify(S.golfers)),
+      horses:JSON.parse(JSON.stringify(tempHorses)),
+      comboCount,cost,totalEV,totalEVpct,
+      note:`Batch slip ${idx+1}`,status:'pending',actualReturn:null,profit:null});
+    showToast(`✓ Slip ${idx+1} saved`,'ok');
+    // Mark as saved visually
+    generatedBatches[idx].saved=true;
+    renderBatches();
+  }catch(e){showToast('⚠ Save failed','err');}
+}
+
+async function saveAllIncluded(){
+  const toSave=generatedBatches.filter(b=>b.included&&!b.saved);
+  if(!toSave.length){showToast('Nothing new to save','err');return;}
+  for(let i=0;i<generatedBatches.length;i++){
+    if(generatedBatches[i].included&&!generatedBatches[i].saved) await saveBatch(i);
+  }
+  showToast(`✓ ${toSave.length} slips saved`,'ok');
 }
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────────
@@ -951,6 +1354,7 @@ document.addEventListener('click',e=>{
 });
 document.getElementById('pick-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closePickModal();});
 document.getElementById('save-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSaveModal();});
+document.getElementById('settle-modal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettleModal();});
 document.getElementById('paste-area').addEventListener('paste',()=>setTimeout(parsePaste,50));
 
 render();
