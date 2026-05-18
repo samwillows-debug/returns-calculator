@@ -1174,19 +1174,40 @@ function openBatchView() {
 function closeBatchView(){document.getElementById('batch-view').classList.remove('open');}
 
 function calcBatchEV(horses) {
-  // Quick compound place EV for a set of horses (treble basis using S.betType)
-  const active=horses.filter(h=>parseFloat(h.fairPlace)>0&&parseFloat(h.odds)>0);
-  if(active.length<2) return null;
-  // Average per-leg place EV across all legs
-  const legEVs=active.map(h=>{
-    const frac=parseFloat(h.odds)-1;
-    const bookPO=po(frac,h.terms||5);
-    return bookPO/parseFloat(h.fairPlace);
-  });
-  // Compound EV as geometric mean of leg factors raised to betType
-  const avg=legEVs.reduce((a,v)=>a+v,0)/legEVs.length;
-  const netEVpct=(Math.pow(avg,S.betType)-1)*100;
-  return netEVpct;
+  // Run the full combo builder for this set of horses + current golfers
+  // Returns {totalEVpound, totalEVpct, comboCount, cost}
+  const allSels=[
+    ...S.golfers.map(g=>({...g,type:'golfer',fracOdds:toDecimal(g.odds),bookPO:toDecimal(g.odds)>0?po(toDecimal(g.odds),g.terms||5):0,hasOdds:toDecimal(g.odds)>0})),
+    ...horses.map(h=>({...h,type:'horse',fracOdds:toDecimal(h.odds),bookPO:toDecimal(h.odds)>0?po(toDecimal(h.odds),h.terms||5):0,hasOdds:toDecimal(h.odds)>0}))
+  ].filter(s=>s.hasOdds);
+  const n=S.betType, combos=[];
+  function comb(start,cur){
+    if(cur.length===n){
+      if(S.numGolfers>=2&&cur.filter(s=>s.type==='golfer').length>=2) return;
+      const active=cur.filter(s=>s.status!=='nr');
+      if(active.length<2) return;
+      const allHaveEV=active.every(s=>parseFloat(s.fairPlace)>0);
+      if(!allHaveEV){combos.push({netEVpound:null});return;}
+      const placeReturn=S.stake*active.reduce((a,s)=>a*((1/parseFloat(s.fairPlace))*s.bookPO),1);
+      const placeTrebleEV=placeReturn-S.stake;
+      const hasWinFair=active.every(s=>parseFloat(s.fairWin)>0);
+      let winTrebleEV=-S.stake;
+      if(hasWinFair){
+        const wr=S.stake*active.reduce((a,s)=>a*((1/parseFloat(s.fairWin))*parseFloat(s.odds)),1);
+        winTrebleEV=wr-S.stake;
+      }
+      combos.push({netEVpound:winTrebleEV+placeTrebleEV});
+      return;
+    }
+    for(let i=start;i<allSels.length;i++) comb(i+1,[...cur,allSels[i]]);
+  }
+  comb(0,[]);
+  const withEV=combos.filter(c=>c.netEVpound!==null);
+  if(!withEV.length) return {totalEVpound:null,totalEVpct:null,comboCount:combos.length};
+  const totalEVpound=withEV.reduce((a,c)=>a+c.netEVpound,0);
+  const cost=combos.length*S.stake*2;
+  const totalEVpct=cost>0?(totalEVpound/cost)*100:null;
+  return {totalEVpound,totalEVpct,comboCount:combos.length,cost};
 }
 
 // Pick top-N by place EV, respecting race uniqueness, deterministically
@@ -1304,24 +1325,24 @@ function generateBatches() {
 
   // Set 1: Best EV (deterministic)
   const set1=topEVSample(horsePool,n);
-  generatedBatches.push({label:'Best EV',desc:'Top horses by Place EV',horses:set1.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set1)});
+  generatedBatches.push({label:'Best EV',desc:'Top horses by Place EV',horses:set1.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set1)});
 
   // Sets 2 & 3: Unique pair (no overlap between them)
   const [set2,set3]=uniquePairSample(horsePool,n);
-  generatedBatches.push({label:'Unique A',desc:'No overlap with Unique B',horses:set2.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set2)});
-  generatedBatches.push({label:'Unique B',desc:'No overlap with Unique A',horses:set3.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set3)});
+  generatedBatches.push({label:'Unique A',desc:'No overlap with Unique B',horses:set2.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set2)});
+  generatedBatches.push({label:'Unique B',desc:'No overlap with Unique A',horses:set3.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set3)});
 
   // Set 4: Contrarian (avoids Set 1 horses)
   const set4=contrarianSample(horsePool,n,set1.map(h=>h.name));
-  generatedBatches.push({label:'Contrarian',desc:'Avoids Best EV picks',horses:set4.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set4)});
+  generatedBatches.push({label:'Contrarian',desc:'Avoids Best EV picks',horses:set4.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set4)});
 
   // Set 5: Pure random
   const set5=weightedSample(horsePool,n,'rand');
-  generatedBatches.push({label:'Random',desc:'Completely random picks',horses:set5.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set5)});
+  generatedBatches.push({label:'Random',desc:'Completely random picks',horses:set5.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set5)});
 
   // Set 6: Big odds
   const set6=highOddsSample(horsePool,n);
-  generatedBatches.push({label:'Big Odds',desc:'Longest priced horses',horses:set6.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set6)});
+  generatedBatches.push({label:'Big Odds',desc:'Longest priced horses',horses:set6.map(h=>({...h,status:'tbd'})),included:true,ev:calcBatchEV(set6)});
 
   renderBatches();
   const betLabel={2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType]||'Multiples';
@@ -1348,16 +1369,21 @@ function renderBatches(){
   const included=generatedBatches.filter(b=>b.included);
 
   document.getElementById('batch-list').innerHTML=generatedBatches.map((b,idx)=>{
-    const ev=b.netEV;
-    const evStr=ev!=null?(ev>=0?'+':'')+ev.toFixed(1)+'%':'—';
-    const evCls=ev!=null?(ev>=0?'pos':'neg'):'muted';
+    const ev=b.ev;
+    const evPound=ev?.totalEVpound;
+    const evPct=ev?.totalEVpct;
+    const comboCount=ev?.comboCount||0;
+    const slipCost=ev?.cost||(comboCount*S.stake*2);
+    const evPoundStr=evPound!=null?(evPound>=0?'+':'')+'£'+evPound.toFixed(2):'—';
+    const evPctStr=evPct!=null?(evPct>=0?'+':'')+evPct.toFixed(1)+'%':'—';
+    const evCls=evPound!=null?(evPound>=0?'pos':'neg'):'muted';
     const savedBadge=b.saved?'<span style="font-size:9px;color:var(--green);margin-left:4px;">SAVED</span>':''
     return `<div class="batch-card ${b.included?'selected':'deselected'}">
       <div class="batch-header">
         <div><span class="batch-num">${b.label||'Slip '+(idx+1)} ${b.included?'✓':''}</span>${savedBadge}<div style="font-size:10px;color:var(--muted);margin-top:1px;">${b.desc||''}</div></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="batch-ev ${evCls}">PlEV ${evStr}</span>
-          <span style="font-size:11px;color:var(--muted);">£${cost.toFixed(2)}</span>
+        <div style="text-align:right;">
+          <div class="batch-ev ${evCls}">${evPoundStr}</div>
+          <div style="font-size:10px;color:var(--muted);">${evPctStr} EV · £${slipCost.toFixed(2)} stake</div>
         </div>
       </div>
       <div class="batch-horses">
@@ -1410,13 +1436,8 @@ async function saveBatch(idx){
     ...S.golfers.filter(g=>parseFloat(g.odds)>0),
     ...tempHorses.filter(h=>parseFloat(h.odds)>0)
   ];
-  const withFairPlace=tempSels.filter(s=>parseFloat(s.fairPlace)>0);
-  let totalEV=null,totalEVpct=null;
-  if(withFairPlace.length===tempSels.length&&tempSels.length>0){
-    // Approximate: sum of per-combo net EVs
-    totalEVpct=b.netEV;
-    totalEV=totalEVpct!=null?(totalEVpct/100)*cost:null;
-  }
+  const totalEV=b.ev?.totalEVpound??null;
+  const totalEVpct=b.ev?.totalEVpct??null;
 
   try{
     await dbAdd({ts:Date.now(),betType:S.betType,betTypeLabel,stake:S.stake,
