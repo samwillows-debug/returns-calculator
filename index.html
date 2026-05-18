@@ -278,15 +278,7 @@ select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:
   <div style="padding:12px 16px 6px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
     <div style="font-size:11px;color:var(--muted);" id="batch-info">Generate multiple slip options at once, then save the ones you want to place.</div>
     <div style="display:flex;gap:6px;align-items:center;">
-      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;">Batches</div>
-      <select id="batch-count" style="width:60px;padding:5px 6px;font-size:12px;">
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-        <option value="6" selected>6</option>
-        <option value="8">8</option>
-      </select>
-      <button class="btn-rotate" onclick="generateBatches()">⚡ Generate</button>
+      <button class="btn-rotate" onclick="generateBatches()">⚡ Regenerate</button>
     </div>
   </div>
   <div id="batch-list" style="padding:0 16px;display:flex;flex-direction:column;gap:10px;margin-top:6px;"></div>
@@ -571,14 +563,25 @@ function clearPool() {
   horsePool=[]; poolLoadedAt=null; updatePoolBar(); showToast('Pool cleared','ok');
 }
 
+let poolAgeTimer=null;
 function updatePoolBar() {
   const bar=document.getElementById('pool-bar');
   const info=document.getElementById('pool-info');
-  if(!horsePool.length){bar.classList.remove('has-pool');return;}
+  if(!horsePool.length){bar.classList.remove('has-pool');clearInterval(poolAgeTimer);return;}
   bar.classList.add('has-pool');
-  const age=poolLoadedAt?Math.round((Date.now()-poolLoadedAt)/60000):0;
-  const ageStr=age<1?'just now':`${age}m ago`;
-  info.innerHTML=`Pool: <strong>${horsePool.length} horses</strong> &nbsp;·&nbsp; showing ${S.numHorses} &nbsp;·&nbsp; <span class="pool-age">loaded ${ageStr}</span>`;
+  const ageMins=poolLoadedAt?((Date.now()-poolLoadedAt)/60000):0;
+  const ageStr=ageMins<1?'just now':`${Math.round(ageMins)}m ago`;
+  let ageColor='var(--green)';
+  let warning='';
+  if(ageMins>=10){ageColor='var(--red)';warning=' &nbsp;⚠ odds likely stale — repaste';}
+  else if(ageMins>=5){ageColor='var(--amber)';warning=' &nbsp;⚠ repaste soon';}
+  info.innerHTML=`Pool: <strong>${horsePool.length} horses</strong> &nbsp;·&nbsp; showing ${S.numHorses} &nbsp;·&nbsp; <span style="color:${ageColor};">loaded ${ageStr}${warning}</span>`;
+  // Re-colour pool bar border
+  bar.style.borderBottomColor=ageMins>=10?'#ff4f4f44':ageMins>=5?'#ffb83044':'var(--border)';
+}
+function startPoolAgeTimer(){
+  clearInterval(poolAgeTimer);
+  poolAgeTimer=setInterval(updatePoolBar,30000); // refresh every 30s
 }
 
 // ─── PICK NOW MODAL ───────────────────────────────────────────────────────────
@@ -622,7 +625,7 @@ function loadParsed() {
   document.getElementById('num-horses').value=7;
   S.horses=weightedSample(horsePool,S.numHorses,'plev').map(h=>({...h,status:'tbd'}));
   S.golfers.forEach(g=>{g.status='tbd';});
-  closePickModal(); render(); updatePoolBar();
+  closePickModal(); render(); updatePoolBar(); startPoolAgeTimer();
   showToast(`✓ Pool: ${horsePool.length} horses loaded`,'ok');
 }
 
@@ -1186,31 +1189,144 @@ function calcBatchEV(horses) {
   return netEVpct;
 }
 
+// Pick top-N by place EV, respecting race uniqueness, deterministically
+function topEVSample(pool, n) {
+  const ranked=[...pool].sort((a,b)=>{
+    const pa=parseFloat(a.fairPlace)>0?po(a.odds-1,a.terms)/parseFloat(a.fairPlace):0;
+    const pb=parseFloat(b.fairPlace)>0?po(b.odds-1,b.terms)/parseFloat(b.fairPlace):0;
+    return pb-pa;
+  });
+  const selected=[], usedRaces=new Set();
+  for(const h of ranked){
+    if(selected.length>=n) break;
+    if(h.race&&usedRaces.has(h.race)) continue;
+    selected.push(h);
+    if(h.race) usedRaces.add(h.race);
+  }
+  // If race filtering left us short, fill remaining without race constraint
+  if(selected.length<n){
+    const selNames=new Set(selected.map(h=>h.name));
+    for(const h of ranked){
+      if(selected.length>=n) break;
+      if(!selNames.has(h.name)){selected.push(h);selNames.add(h.name);}
+    }
+  }
+  return selected;
+}
+
+// Pick highest-odds N, respecting race uniqueness
+function highOddsSample(pool, n) {
+  const ranked=[...pool].sort((a,b)=>parseFloat(b.odds)-parseFloat(a.odds));
+  const selected=[], usedRaces=new Set();
+  for(const h of ranked){
+    if(selected.length>=n) break;
+    if(h.race&&usedRaces.has(h.race)) continue;
+    selected.push(h);
+    if(h.race) usedRaces.add(h.race);
+  }
+  if(selected.length<n){
+    const selNames=new Set(selected.map(h=>h.name));
+    for(const h of ranked){if(selected.length>=n)break;if(!selNames.has(h.name)){selected.push(h);selNames.add(h.name);}}
+  }
+  return selected;
+}
+
+// Generate two fully non-overlapping sets
+function uniquePairSample(pool, n) {
+  // Set A: weighted sample
+  const setA=weightedSample(pool,n,rotateMode);
+  const usedNames=new Set(setA.map(h=>h.name));
+  // Set B: from remaining horses only
+  const remaining=pool.filter(h=>!usedNames.has(h.name));
+  let setB;
+  if(remaining.length>=n){
+    setB=weightedSample(remaining,n,rotateMode);
+  } else {
+    // Pool too small for fully unique — fill from pool avoiding A where possible
+    setB=weightedSample(pool,n,rotateMode);
+  }
+  return [setA,setB];
+}
+
+// Contrarian: downweight horses that appear in set1
+function contrarianSample(pool, n, avoidNames) {
+  const avoid=new Set(avoidNames);
+  // Give avoided horses 1/5 the weight of others
+  const ranked=[...pool];
+  ranked.sort((a,b)=>{
+    const pa=parseFloat(a.fairPlace)>0?po(a.odds-1,a.terms)/parseFloat(a.fairPlace):0;
+    const pb=parseFloat(b.fairPlace)>0?po(b.odds-1,b.terms)/parseFloat(b.fairPlace):0;
+    return pb-pa;
+  });
+  const weights=ranked.map((h,i)=>{
+    const baseW=ranked.length-i;
+    return avoid.has(h.name)?Math.max(1,Math.floor(baseW/5)):baseW;
+  });
+  const available=ranked.map((h,i)=>({h,w:weights[i]}));
+  const selected=[], usedRaces=new Set();
+  for(let pick=0;pick<n&&available.length>0;pick++){
+    const eligible=available.filter(x=>!x.h.race||!usedRaces.has(x.h.race));
+    const pool2=eligible.length>0?eligible:available;
+    let r=Math.random()*pool2.reduce((a,x)=>a+x.w,0);
+    let idx=0;
+    for(let j=0;j<pool2.length;j++){r-=pool2[j].w;if(r<=0){idx=j;break;}}
+    const chosen=pool2[idx];
+    selected.push(chosen.h);
+    if(chosen.h.race) usedRaces.add(chosen.h.race);
+    const gi=available.indexOf(chosen);
+    if(gi>-1) available.splice(gi,1);
+  }
+  return selected;
+}
+
+function maxFeasibleSlipSize(pool) {
+  // Count how many unique races are in the pool
+  // Max horses we can pick = number of unique races (one per race)
+  // But also capped by pool size itself
+  const uniqueRaces=new Set(pool.map(h=>h.race||('__norace__'+h.name)));
+  return Math.min(pool.length, uniqueRaces.size);
+}
+
 function generateBatches() {
   if(!horsePool.length){showToast('No pool loaded','err');return;}
-  const count=parseInt(document.getElementById('batch-count').value)||6;
-  const n=S.numHorses;
-  generatedBatches=[];
-  const usedSets=[];
+  const requested=S.numHorses;
+  const maxPossible=maxFeasibleSlipSize(horsePool);
 
-  for(let b=0;b<count;b++) {
-    let horses;
-    // Try up to 15 times to get a reasonably different set
-    for(let attempt=0;attempt<15;attempt++){
-      horses=weightedSample(horsePool,n,rotateMode);
-      const nameSet=new Set(horses.map(h=>h.name));
-      const isDuplicate=usedSets.some(s=>s.size===nameSet.size&&[...nameSet].every(x=>s.has(x)));
-      const maxOverlap=Math.floor(n*0.6); // allow up to 60% overlap
-      const tooSimilar=usedSets.some(s=>[...nameSet].filter(x=>s.has(x)).length>maxOverlap);
-      if(!isDuplicate&&!tooSimilar) break;
-    }
-    usedSets.push(new Set(horses.map(h=>h.name)));
-    const netEV=calcBatchEV(horses);
-    const cost=expectedCombosFromCount(S.numGolfers,n,S.betType)*S.stake*2;
-    generatedBatches.push({horses:horses.map(h=>({...h,status:'tbd'})),included:true,netEV,cost});
+  // Silently cap n — don't error, just use what's achievable
+  const n=Math.min(requested, maxPossible);
+  generatedBatches=[];
+
+  if(n<2){
+    document.getElementById('batch-list').innerHTML=`<div style="padding:24px;text-align:center;color:var(--red);font-size:13px;">Not enough unique races in pool to build a valid slip.<br><span style="color:var(--muted);font-size:11px;">Need at least 2 horses from different races.</span></div>`;
+    document.getElementById('batch-info').textContent='Cannot generate batches — pool has too many horses from the same race.';
+    return;
   }
+
+  // Set 1: Best EV (deterministic)
+  const set1=topEVSample(horsePool,n);
+  generatedBatches.push({label:'Best EV',desc:'Top horses by Place EV',horses:set1.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set1)});
+
+  // Sets 2 & 3: Unique pair (no overlap between them)
+  const [set2,set3]=uniquePairSample(horsePool,n);
+  generatedBatches.push({label:'Unique A',desc:'No overlap with Unique B',horses:set2.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set2)});
+  generatedBatches.push({label:'Unique B',desc:'No overlap with Unique A',horses:set3.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set3)});
+
+  // Set 4: Contrarian (avoids Set 1 horses)
+  const set4=contrarianSample(horsePool,n,set1.map(h=>h.name));
+  generatedBatches.push({label:'Contrarian',desc:'Avoids Best EV picks',horses:set4.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set4)});
+
+  // Set 5: Pure random
+  const set5=weightedSample(horsePool,n,'rand');
+  generatedBatches.push({label:'Random',desc:'Completely random picks',horses:set5.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set5)});
+
+  // Set 6: Big odds
+  const set6=highOddsSample(horsePool,n);
+  generatedBatches.push({label:'Big Odds',desc:'Longest priced horses',horses:set6.map(h=>({...h,status:'tbd'})),included:true,netEV:calcBatchEV(set6)});
+
   renderBatches();
-  document.getElementById('batch-info').textContent=`${count} batches · ${generatedBatches[0]?.horses.length||n} horses each · no same-race clashes`;
+  const betLabel={2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType]||'Multiples';
+  const cappedNote=n<requested?` (capped from ${requested} — only ${n} unique races available)`:'';
+  document.getElementById('batch-info').textContent=`6 structured batches · ${n} horses · ${betLabel} · no same-race clashes${cappedNote}`;
 }
 
 function expectedCombosFromCount(numG,numH,betType){
@@ -1235,9 +1351,10 @@ function renderBatches(){
     const ev=b.netEV;
     const evStr=ev!=null?(ev>=0?'+':'')+ev.toFixed(1)+'%':'—';
     const evCls=ev!=null?(ev>=0?'pos':'neg'):'muted';
+    const savedBadge=b.saved?'<span style="font-size:9px;color:var(--green);margin-left:4px;">SAVED</span>':''
     return `<div class="batch-card ${b.included?'selected':'deselected'}">
       <div class="batch-header">
-        <span class="batch-num">Slip ${idx+1} ${b.included?'✓':''}</span>
+        <div><span class="batch-num">${b.label||'Slip '+(idx+1)} ${b.included?'✓':''}</span>${savedBadge}<div style="font-size:10px;color:var(--muted);margin-top:1px;">${b.desc||''}</div></div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="batch-ev ${evCls}">PlEV ${evStr}</span>
           <span style="font-size:11px;color:var(--muted);">£${cost.toFixed(2)}</span>
