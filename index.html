@@ -5,121 +5,220 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Returns Calculator</title>
 <style>
-  :root { --bg:#0a0a0a; --surface:#141414; --surface2:#1e1e1e; --border:#2a2a2a; --text:#f0f0f0; --muted:#888; --green:#00c87a; --blue:#3b9eff; --red:#ff4f4f; --amber:#ffb830; --purple:#b57bff; --radius:10px; --font:'DM Mono','Courier New',monospace; }
-  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-  html,body { background:var(--bg); color:var(--text); font-family:var(--font); font-size:14px; min-height:100vh; }
-  body { padding:0 0 80px; }
-  .header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 16px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; }
-  .header h1 { font-size:15px; font-weight:600; letter-spacing:0.05em; }
-  .header .subtitle { font-size:11px; color:var(--muted); margin-top:1px; }
-  .header-right { text-align:right; }
-  .header-right .cost { font-size:18px; font-weight:600; }
-  .header-right .lbl { font-size:10px; color:var(--muted); }
-  .controls { padding:12px 16px; background:var(--surface); border-bottom:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
-  .controls-row2 { padding:8px 16px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-  .ctrl label { display:block; font-size:10px; color:var(--muted); margin-bottom:3px; letter-spacing:0.05em; text-transform:uppercase; }
-  select,input[type="number"],input[type="text"] { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:7px 8px; font-family:var(--font); font-size:13px; appearance:none; -webkit-appearance:none; outline:none; }
-  select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:var(--blue); }
-  .sel-top input[type="text"],.sel-top input[type="text"]:focus { background:transparent !important; border-color:transparent !important; outline:none; }
-  .section-head { padding:10px 16px 6px; }
-  .section-head span { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
-  .sel-list { padding:0 16px; display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
-  .sel-row { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; }
-  .sel-row.is-golfer { border-left:3px solid var(--blue) !important; }
-  .sel-row.is-horse { border-left:3px solid var(--border); }
-  .sel-row.is-golfer.status-place { border-left:3px solid var(--amber) !important; }
-  .sel-row.is-golfer.status-win { border-left:3px solid var(--green) !important; }
-  .sel-row.is-horse.status-win,.sel-row.is-horse.status-place { border-left:3px solid var(--green); }
-  .sel-row.is-horse.status-place { border-left:3px solid var(--amber); }
-  .sel-row.is-horse.status-nr { border-left:3px solid var(--purple); opacity:0.6; }
-  .sel-row.status-lose { opacity:0.45; }
-  .sel-top { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .sel-top input[type="text"] { flex:1; font-size:14px; font-weight:500; padding:4px 0; }
-  .type-tag { font-size:10px; padding:2px 7px; border-radius:20px; white-space:nowrap; }
-  .type-tag.golfer { background:#1a3a5c; color:var(--blue); }
-  .type-tag.horse { background:var(--surface2); color:var(--muted); }
-  .fields-row { display:grid; gap:6px; margin-bottom:6px; }
-  .cols2 { grid-template-columns:1fr 1fr; }
-  .cols3 { grid-template-columns:1fr 1fr 1fr; }
-  .cols4 { grid-template-columns:1fr 1fr 1fr 1fr; }
-  .cols5 { grid-template-columns:1fr 1fr 1fr 1fr 1fr; }
-  .field label { font-size:10px; color:var(--muted); display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.04em; }
-  .ev-strip { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
-  .ev-pill { font-size:11px; padding:2px 8px; border-radius:20px; }
-  .ev-pill.pos { background:#00c87a22; color:var(--green); font-weight:600; }
-  .ev-pill.neg { background:#ff4f4f22; color:var(--red); }
-  .ev-pill.muted { background:var(--surface2); color:var(--muted); }
-  .divider { height:1px; background:var(--border); margin:12px 0; }
-  .metrics { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); margin:12px 16px; border-radius:var(--radius); overflow:hidden; }
-  .metric { background:var(--surface); padding:12px; }
-  .metric .ml { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
-  .metric .mv { font-size:20px; font-weight:600; }
-  .mv.pos { color:var(--green); }
-  .mv.neg { color:var(--red); }
-  .mv.neutral { color:var(--text); }
-  .filter-bar { display:flex; gap:6px; padding:0 16px 10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-  .filter-bar::-webkit-scrollbar { display:none; }
-  .fbtn { flex-shrink:0; font-size:12px; padding:5px 12px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:var(--font); cursor:pointer; }
-  .fbtn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
-  .combos { padding:0 16px; display:flex; flex-direction:column; gap:6px; }
-  .combo-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; }
-  .combo-card.has-golfer { border-left:3px solid var(--blue); }
-  .combo-card.dead { opacity:0.3; }
-  .combo-card.has-nr { border-left:3px solid var(--purple); }
-  .combo-name { font-size:12px; font-weight:600; margin-bottom:5px; line-height:1.4; }
-  .nr-tag { font-size:10px; color:var(--purple); margin-bottom:4px; }
-  .combo-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
-  .cstat { text-align:center; }
-  .cstat .csl { font-size:9px; color:var(--muted); text-transform:uppercase; margin-bottom:2px; }
-  .cstat .csv { font-size:12px; font-weight:600; }
-  .csv.pos { color:var(--green); }
-  .csv.win { color:var(--amber); }
-  .csv.live { color:var(--blue); }
-  .csv.dead { color:var(--red); }
-  .csv.muted { color:var(--muted); }
-  .summary-bar { padding:8px 16px; font-size:11px; color:var(--muted); }
-  .sel-summary { margin:0 16px 10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
-  .sel-summary-table { width:100%; border-collapse:collapse; font-size:11px; }
-  .sel-summary-table th { padding:6px 8px; text-align:left; color:var(--muted); font-weight:500; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid var(--border); background:var(--surface2); white-space:nowrap; }
-  .sel-summary-table td { padding:5px 8px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--text); font-size:11px; }
-  .sel-summary-table tr:last-child td { border-bottom:none; }
-  .sel-summary-table td.label { color:var(--muted); font-size:10px; }
-  .sel-summary-table .g-row td { background:#1a3a5c22; }
-  .sel-summary-table .h-row td { }
-  .ss-pos { color:var(--green); font-weight:600; }
-  .ss-neg { color:var(--red); }
-  .ss-muted { color:var(--muted); }
-  @media(max-width:380px){ .combo-stats{grid-template-columns:repeat(3,1fr);} .cols5{grid-template-columns:1fr 1fr 1fr;} .cols4{grid-template-columns:1fr 1fr;} }
+:root { --bg:#0a0a0a; --surface:#141414; --surface2:#1e1e1e; --border:#2a2a2a; --text:#f0f0f0; --muted:#888; --green:#00c87a; --blue:#3b9eff; --red:#ff4f4f; --amber:#ffb830; --purple:#b57bff; --radius:10px; --font:'DM Mono','Courier New',monospace; }
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body { background:var(--bg); color:var(--text); font-family:var(--font); font-size:14px; min-height:100vh; }
+body { padding:0 0 80px; }
+
+/* HEADER */
+.header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 16px; position:sticky; top:0; z-index:100; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.header-left { display:flex; flex-direction:column; }
+.header h1 { font-size:14px; font-weight:600; letter-spacing:0.05em; }
+.header .subtitle { font-size:10px; color:var(--muted); margin-top:1px; }
+.header-right { text-align:right; }
+.header-right .cost { font-size:18px; font-weight:600; }
+.header-right .lbl { font-size:10px; color:var(--muted); }
+.header-actions { display:flex; gap:6px; align-items:center; }
+.btn-pick { background:var(--green); color:#000; border:none; border-radius:8px; padding:8px 14px; font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; letter-spacing:0.05em; white-space:nowrap; }
+.btn-pick:active { opacity:0.8; }
+.btn-save { background:var(--blue); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-family:var(--font); font-size:12px; font-weight:600; cursor:pointer; letter-spacing:0.05em; white-space:nowrap; }
+.btn-save:active { opacity:0.8; }
+.btn-hist { background:transparent; color:var(--muted); border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-family:var(--font); font-size:12px; cursor:pointer; }
+.btn-hist:active { opacity:0.8; }
+
+/* CONTROLS */
+.controls { padding:12px 16px; background:var(--surface); border-bottom:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+.controls-row2 { padding:8px 16px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.ctrl label { display:block; font-size:10px; color:var(--muted); margin-bottom:3px; letter-spacing:0.05em; text-transform:uppercase; }
+select,input[type="number"],input[type="text"] { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:7px 8px; font-family:var(--font); font-size:13px; appearance:none; -webkit-appearance:none; outline:none; }
+select:focus,input[type="number"]:focus,input[type="text"]:focus { border-color:var(--blue); }
+.sel-top input[type="text"],.sel-top input[type="text"]:focus { background:transparent !important; border-color:transparent !important; outline:none; }
+
+/* SELECTIONS */
+.section-head { padding:10px 16px 6px; display:flex; align-items:center; justify-content:space-between; }
+.section-head span { font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+.sel-list { padding:0 16px; display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+.sel-row { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; }
+.sel-row.is-golfer { border-left:3px solid var(--blue) !important; }
+.sel-row.is-horse { border-left:3px solid var(--border); }
+.sel-row.is-golfer.status-place { border-left:3px solid var(--amber) !important; }
+.sel-row.is-golfer.status-win { border-left:3px solid var(--green) !important; }
+.sel-row.is-horse.status-win { border-left:3px solid var(--green) !important; }
+.sel-row.is-horse.status-place { border-left:3px solid var(--amber) !important; }
+.sel-row.is-horse.status-nr { border-left:3px solid var(--purple); opacity:0.6; }
+.sel-row.status-lose { opacity:0.45; }
+.sel-top { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.sel-top input[type="text"] { flex:1; font-size:14px; font-weight:500; padding:4px 0; }
+.type-tag { font-size:10px; padding:2px 7px; border-radius:20px; white-space:nowrap; }
+.type-tag.golfer { background:#1a3a5c; color:var(--blue); }
+.type-tag.horse { background:var(--surface2); color:var(--muted); }
+.fields-row { display:grid; gap:6px; margin-bottom:6px; }
+.cols2 { grid-template-columns:1fr 1fr; }
+.cols3 { grid-template-columns:1fr 1fr 1fr; }
+.cols4 { grid-template-columns:1fr 1fr 1fr 1fr; }
+.field label { font-size:10px; color:var(--muted); display:block; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.04em; }
+.ev-strip { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.ev-pill { font-size:11px; padding:2px 8px; border-radius:20px; }
+.ev-pill.pos { background:#00c87a22; color:var(--green); font-weight:600; }
+.ev-pill.neg { background:#ff4f4f22; color:var(--red); }
+.ev-pill.muted { background:var(--surface2); color:var(--muted); }
+.race-tag { font-size:10px; color:var(--muted); padding:2px 6px; background:var(--surface2); border-radius:4px; white-space:nowrap; }
+.divider { height:1px; background:var(--border); margin:12px 0; }
+
+/* METRICS */
+.metrics { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); margin:12px 16px; border-radius:var(--radius); overflow:hidden; }
+.metric { background:var(--surface); padding:12px; }
+.metric .ml { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
+.metric .mv { font-size:20px; font-weight:600; }
+.mv.pos { color:var(--green); }
+.mv.neg { color:var(--red); }
+.mv.neutral { color:var(--text); }
+
+/* FILTER */
+.filter-bar { display:flex; gap:6px; padding:0 16px 10px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.filter-bar::-webkit-scrollbar { display:none; }
+.fbtn { flex-shrink:0; font-size:12px; padding:5px 12px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--muted); font-family:var(--font); cursor:pointer; }
+.fbtn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+/* COMBOS */
+.combos { padding:0 16px; display:flex; flex-direction:column; gap:6px; }
+.combo-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:10px 12px; }
+.combo-card.has-golfer { border-left:3px solid var(--blue); }
+.combo-card.has-nr { border-left:3px solid var(--purple); }
+.combo-name { font-size:12px; font-weight:600; margin-bottom:5px; line-height:1.4; }
+.nr-tag { font-size:10px; color:var(--purple); margin-bottom:4px; }
+.combo-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; }
+.cstat { text-align:center; }
+.cstat .csl { font-size:9px; color:var(--muted); text-transform:uppercase; margin-bottom:2px; }
+.cstat .csv { font-size:12px; font-weight:600; }
+.csv.pos { color:var(--green); }
+.csv.win { color:var(--amber); }
+.csv.live { color:var(--blue); }
+.csv.dead { color:var(--red); }
+.csv.muted { color:var(--muted); }
+.summary-bar { padding:8px 16px; font-size:11px; color:var(--muted); }
+
+/* SELECTION SUMMARY TABLE */
+.sel-summary { margin:0 16px 10px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.sel-summary-table { width:100%; border-collapse:collapse; font-size:11px; }
+.sel-summary-table th { padding:6px 8px; text-align:left; color:var(--muted); font-weight:500; font-size:10px; text-transform:uppercase; letter-spacing:0.04em; border-bottom:1px solid var(--border); background:var(--surface2); white-space:nowrap; }
+.sel-summary-table td { padding:5px 8px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--text); font-size:11px; }
+.sel-summary-table tr:last-child td { border-bottom:none; }
+.sel-summary-table td.label { color:var(--muted); font-size:10px; }
+.sel-summary-table .g-row td { background:#1a3a5c22; }
+.ss-pos { color:var(--green); font-weight:600; }
+.ss-neg { color:var(--red); }
+.ss-muted { color:var(--muted); }
+
+/* MODAL OVERLAY */
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:500; align-items:flex-end; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:16px 16px 0 0; width:100%; max-width:600px; max-height:85vh; display:flex; flex-direction:column; }
+.modal-head { padding:16px 20px 12px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.modal-head h2 { font-size:14px; font-weight:600; letter-spacing:0.05em; }
+.modal-close { background:var(--surface2); border:none; color:var(--muted); border-radius:50%; width:28px; height:28px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.modal-body { padding:16px 20px; flex:1; overflow-y:auto; }
+.modal-body p { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.6; }
+.modal-body textarea { width:100%; background:var(--surface2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:12px; font-family:var(--font); font-size:12px; resize:vertical; min-height:180px; outline:none; }
+.modal-body textarea:focus { border-color:var(--blue); }
+.modal-foot { padding:12px 20px 20px; border-top:1px solid var(--border); display:flex; gap:8px; flex-shrink:0; }
+.modal-foot button { flex:1; padding:12px; border-radius:8px; border:none; font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; }
+.btn-parse { background:var(--green); color:#000; }
+.btn-cancel { background:var(--surface2); color:var(--muted); }
+.parse-preview { margin-top:12px; }
+.parse-preview-title { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px; }
+.parse-row { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; background:var(--surface2); border-radius:6px; margin-bottom:4px; font-size:12px; }
+.parse-row .pr-name { font-weight:600; flex:1; }
+.parse-row .pr-ev { color:var(--green); font-size:11px; margin-left:8px; }
+.parse-row .pr-odds { color:var(--muted); font-size:11px; margin-left:8px; }
+.parse-err { color:var(--red); font-size:12px; padding:8px 0; }
+.parse-count { font-size:11px; color:var(--muted); margin-bottom:8px; }
+
+/* SAVE MODAL */
+.save-modal { max-height:70vh; }
+.save-field { margin-bottom:12px; }
+.save-field label { display:block; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
+.save-field input, .save-field select { width:100%; }
+.save-summary { background:var(--surface2); border-radius:8px; padding:12px; margin-bottom:12px; }
+.save-summary-row { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+.save-summary-row:last-child { margin-bottom:0; }
+.save-summary-row .slbl { color:var(--muted); }
+.save-summary-row .sval { font-weight:600; }
+.sval.pos { color:var(--green); }
+.sval.neg { color:var(--red); }
+
+/* HISTORY VIEW */
+.history-view { display:none; position:fixed; inset:0; background:var(--bg); z-index:400; overflow-y:auto; padding-bottom:80px; }
+.history-view.open { display:block; }
+.history-header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 16px; position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; z-index:10; }
+.history-header h2 { font-size:14px; font-weight:600; letter-spacing:0.05em; }
+.btn-back { background:transparent; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:7px 14px; font-family:var(--font); font-size:12px; cursor:pointer; }
+.history-stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:1px; background:var(--border); margin:16px; border-radius:var(--radius); overflow:hidden; }
+.hstat { background:var(--surface); padding:12px; }
+.hstat .hsl { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:4px; }
+.hstat .hsv { font-size:18px; font-weight:600; }
+.history-slips { padding:0 16px; display:flex; flex-direction:column; gap:8px; }
+.slip-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:12px; cursor:pointer; }
+.slip-card:active { opacity:0.8; }
+.slip-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.slip-date { font-size:10px; color:var(--muted); }
+.slip-label { font-size:11px; font-weight:600; color:var(--text); }
+.slip-note { font-size:11px; color:var(--blue); margin-top:2px; }
+.slip-metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+.sm { text-align:center; }
+.sm .sml { font-size:9px; color:var(--muted); text-transform:uppercase; margin-bottom:2px; }
+.sm .smv { font-size:13px; font-weight:600; }
+.slip-horses { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); display:flex; flex-wrap:wrap; gap:4px; }
+.horse-chip { font-size:10px; padding:2px 8px; background:var(--surface2); border-radius:12px; color:var(--muted); }
+.slip-actions { display:flex; gap:6px; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
+.slip-actions button { flex:1; padding:7px; border-radius:6px; border:none; font-family:var(--font); font-size:11px; cursor:pointer; font-weight:600; }
+.btn-load { background:var(--blue); color:#fff; }
+.btn-del { background:#ff4f4f22; color:var(--red); }
+.no-history { padding:40px 16px; text-align:center; color:var(--muted); font-size:13px; line-height:2; }
+
+/* TOAST */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:13px; font-weight:600; z-index:1000; transition:transform 0.25s ease; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+.toast.ok { border-color:var(--green); color:var(--green); }
+.toast.err { border-color:var(--red); color:var(--red); }
+
+@media(max-width:380px){ .combo-stats{grid-template-columns:repeat(3,1fr);} .cols4{grid-template-columns:1fr 1fr;} }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
+<!-- MAIN HEADER -->
 <div class="header">
-  <div><h1>RETURNS CALC</h1><div class="subtitle">E/W Multiples + EV</div></div>
+  <div class="header-left">
+    <h1>RETURNS CALC</h1>
+    <div class="subtitle">E/W Multiples + EV</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn-pick" onclick="openPickModal()">⚡ PICK NOW</button>
+    <button class="btn-save" onclick="openSaveModal()">SAVE</button>
+    <button class="btn-hist" onclick="openHistory()">📋</button>
+  </div>
   <div class="header-right">
     <div class="cost" id="hcost">£0.00</div>
     <div class="lbl">SLIP COST</div>
   </div>
 </div>
 
+<!-- CONTROLS -->
 <div class="controls">
   <div class="ctrl"><label>Golfers</label>
     <select id="num-golfers">
       <option value="0" selected>0 — horses only</option>
-      <option value="1">1</option>
-      <option value="2">2</option>
-      <option value="3">3</option>
-      <option value="4">4</option>
+      <option value="1">1</option><option value="2">2</option>
+      <option value="3">3</option><option value="4">4</option>
     </select>
   </div>
   <div class="ctrl"><label>Horses</label>
     <select id="num-horses">
-      <option value="3">3</option>
-      <option value="4">4</option>
-      <option value="5">5</option>
-      <option value="6">6</option>
+      <option value="3">3</option><option value="4">4</option>
+      <option value="5">5</option><option value="6">6</option>
       <option value="7" selected>7</option>
     </select>
   </div>
@@ -144,19 +243,17 @@
   </div>
 </div>
 
+<!-- SELECTIONS -->
 <div id="golfer-section">
   <div class="section-head"><span id="glabel">2 Golfers</span></div>
   <div class="sel-list" id="golfer-list"></div>
   <div class="divider"></div>
 </div>
-
 <div class="section-head"><span id="hlabel">5 Horses</span></div>
 <div class="sel-list" id="horse-list"></div>
 <div class="divider"></div>
-
 <div id="sel-summary"></div>
 <div class="metrics" id="metrics"></div>
-
 <div class="filter-bar">
   <button class="fbtn active" data-filter="all">All</button>
   <button class="fbtn" data-filter="live">Live</button>
@@ -167,17 +264,74 @@
   <button class="fbtn" data-filter="nr">NR</button>
   <button class="fbtn" data-filter="top">Top 20</button>
 </div>
-
 <div class="summary-bar" id="sbar"></div>
 <div class="combos" id="combos"></div>
 
+<!-- PICK NOW MODAL -->
+<div class="modal-overlay" id="pick-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>⚡ PICK NOW — Paste Tracker Data</h2>
+      <button class="modal-close" onclick="closePickModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Copy all rows from the Bookie Bashing Racing Tracker Pro (Ctrl+A then Ctrl+C on the table), then paste below. The top 7 horses by EV will be loaded automatically.</p>
+      <textarea id="paste-area" placeholder="Paste tracker data here...&#10;&#10;Runner&#9;EV&#9;Odds&#9;N.Odds&#9;Win F.Odds&#9;Place F.Odds..."></textarea>
+      <div id="parse-result"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel modal-foot-btn" onclick="closePickModal()">Cancel</button>
+      <button class="btn-parse modal-foot-btn" onclick="parsePaste()">Preview</button>
+      <button class="btn-parse modal-foot-btn" id="load-btn" style="display:none;background:var(--amber);color:#000;" onclick="loadParsed()">Load ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVE MODAL -->
+<div class="modal-overlay" id="save-modal">
+  <div class="modal save-modal">
+    <div class="modal-head">
+      <h2>Save Slip</h2>
+      <button class="modal-close" onclick="closeSaveModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="save-summary-content"></div>
+      <div class="save-field">
+        <label>Note (optional)</label>
+        <input type="text" id="save-note" placeholder="e.g. Roscommon trebles, shop bet">
+      </div>
+      <div class="save-field">
+        <label>Actual cost paid (£)</label>
+        <input type="number" id="save-cost-actual" step="0.01" placeholder="Leave blank to use calculated cost">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel modal-foot-btn" onclick="closeSaveModal()">Cancel</button>
+      <button class="btn-parse modal-foot-btn" onclick="saveSlip()">Save Slip</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY VIEW -->
+<div class="history-view" id="history-view">
+  <div class="history-header">
+    <h2>📋 Slip History</h2>
+    <button class="btn-back" onclick="closeHistory()">← Back</button>
+  </div>
+  <div class="history-stats" id="history-stats"></div>
+  <div class="history-slips" id="history-slips"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
 <script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
 const S = {
   numGolfers:0, numHorses:7, betType:3,
   stake:0.50, oddsFormat:'decimal',
   golfers:[], horses:[], filter:'all'
 };
-
 const dG = [
   {name:'Golfer 1', odds:'', fairWin:'', fairPlace:'', terms:5, places:10, status:'tbd'},
   {name:'Golfer 2', odds:'', fairWin:'', fairPlace:'', terms:5, places:10, status:'tbd'},
@@ -193,66 +347,371 @@ const dH = [
   {name:'Horse 6', odds:'', fairWin:'', fairPlace:'', terms:5, status:'tbd'},
   {name:'Horse 7', odds:'', fairWin:'', fairPlace:'', terms:5, status:'tbd'},
 ];
-
 let allCombos = [];
+let parsedHorses = [];
 
+// ─── MATHS ────────────────────────────────────────────────────────────────────
 function init() {
   while(S.golfers.length < S.numGolfers)
     S.golfers.push({...(dG[S.golfers.length] || {name:`Golfer ${S.golfers.length+1}`, odds:'', fairWin:'', fairPlace:'', terms:5, places:10, status:'tbd'})});
   while(S.horses.length < S.numHorses)
     S.horses.push({...(dH[S.horses.length] || {name:`Horse ${S.horses.length+1}`, odds:'', fairWin:'', fairPlace:'', terms:5, status:'tbd'})});
   S.golfers = S.golfers.slice(0, S.numGolfers);
-  S.horses  = S.horses.slice(0, S.numHorses);
+  S.horses = S.horses.slice(0, S.numHorses);
 }
-
-// Convert entered odds to fractional profit for all calculations
-// Decimal: 26.0 means 25/1, so subtract 1 to get fractional profit = 25
-// Fractional: 25 means 25/1, already fractional profit = 25
 function toFrac(odds) {
   const o = parseFloat(odds);
   if (!o || isNaN(o) || o <= 0) return 0;
-  if (S.oddsFormat === 'decimal') return o - 1;  // 26.0 -> 25
-  return o;                                        // 25 stays 25
+  return S.oddsFormat === 'decimal' ? o - 1 : o;
 }
-
-// Keep toDecimal as alias
 function toDecimal(odds) { return toFrac(odds); }
-
-// Place odds: fractionalProfit / terms + 1
-// e.g. frac 25 / 5 + 1 = 6.0
 function po(fracOdds, terms) { return fracOdds / terms + 1; }
 function placed(s) { return s==='win'||s==='place'; }
 function won(s) { return s==='win'; }
 function isNR(s) { return s==='nr'; }
 
-// EV% = book / fair * 100
 function winEVpct(bookOdds, fairWin) {
-  // Use raw entered values for win EV ratio — both book and fair entered same way
-  const bo = parseFloat(bookOdds);
-  const fw = parseFloat(fairWin);
-  if (!bo || isNaN(bo) || bo <= 0) return null;
-  if (!fw || isNaN(fw) || fw <= 0) return null;
-  // Win EV% = book / fair * 100 (same format both sides cancels out)
-  // Decimal: 26/30 * 100 = 86.7%
-  // Fractional: 25/29 * 100 = 86.2% (slightly different but correct)
+  const bo = parseFloat(bookOdds), fw = parseFloat(fairWin);
+  if (!bo || isNaN(bo) || bo<=0 || !fw || isNaN(fw) || fw<=0) return null;
   return (bo / fw) * 100;
 }
-
 function placeEVpct(bookOdds, fairPlace, terms) {
-  const bo = toFrac(bookOdds); // convert to fractional profit
-  const fp = parseFloat(fairPlace); // always decimal from Betfair e.g. 4.0
-  if (!bo || bo <= 0) return null;
-  if (!fp || isNaN(fp) || fp <= 0) return null;
-  // Book place odds in decimal = fracProfit / terms + 1
-  // e.g. frac 25 / 5 + 1 = 6.0
-  const bookPO = po(bo, terms);
-  // Place EV% = book place decimal / fair place decimal * 100
-  // e.g. 6.0 / 4.0 * 100 = 150%
-  return (bookPO / fp) * 100;
+  const bo = toFrac(bookOdds), fp = parseFloat(fairPlace);
+  if (!bo || bo<=0 || !fp || isNaN(fp) || fp<=0) return null;
+  return (po(bo, terms) / fp) * 100;
 }
 
+// ─── PARSER ───────────────────────────────────────────────────────────────────
+// Columns: Runner EV Odds N.Odds Win_F.Odds Place_F.Odds Win_EV Place_EV Places Terms Race Books Book_odds_check
+// Indices:    0    1   2    3       4           5          6      7       8      9    10   11      12
+function parseTrackerText(raw) {
+  const lines = raw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const horses = [];
+
+  for (const line of lines) {
+    const cols = line.split('\t');
+    if (cols.length < 9) continue;
+
+    // Skip header row
+    const c0 = cols[0].trim().toLowerCase();
+    if (c0 === 'runner' || c0 === '' || c0 === '-') continue;
+
+    // Try to parse: Runner(0) EV(1) Odds(2) N.Odds(3) WinFair(4) PlaceFair(5) WinEV(6) PlaceEV(7) Places(8) Terms(9) Race(10)
+    const name = cols[0].trim();
+    const ev = parseFloat(cols[1]);
+    const odds = parseFloat(cols[2]);
+    const winFair = parseFloat(cols[4]);
+    const placeFair = parseFloat(cols[5]);
+    const places = parseInt(cols[8]);
+    const termsRaw = cols[9] ? cols[9].trim() : '1/5';
+    const race = cols[10] ? cols[10].trim() : '';
+
+    if (!name || isNaN(odds) || odds <= 0) continue;
+    if (isNaN(ev)) continue;
+
+    // Parse terms: "1/5" → 5, "1/4" → 4, "1/3" → 3
+    let terms = 5;
+    if (termsRaw.includes('4')) terms = 4;
+    else if (termsRaw.includes('3')) terms = 3;
+    else if (termsRaw.includes('5')) terms = 5;
+
+    horses.push({
+      name, ev, odds, winFair: isNaN(winFair)?'':winFair,
+      placeFair: isNaN(placeFair)?'':placeFair,
+      places: isNaN(places)?3:places, terms, race,
+      fairWin: isNaN(winFair)?'':String(winFair),
+      fairPlace: isNaN(placeFair)?'':String(placeFair)
+    });
+  }
+
+  // Sort by EV descending, take top numHorses
+  horses.sort((a,b) => b.ev - a.ev);
+  return horses;
+}
+
+// ─── PICK NOW MODAL ───────────────────────────────────────────────────────────
+function openPickModal() {
+  document.getElementById('pick-modal').classList.add('open');
+  document.getElementById('paste-area').value = '';
+  document.getElementById('parse-result').innerHTML = '';
+  document.getElementById('load-btn').style.display = 'none';
+  parsedHorses = [];
+  setTimeout(() => document.getElementById('paste-area').focus(), 100);
+}
+function closePickModal() {
+  document.getElementById('pick-modal').classList.remove('open');
+}
+
+function parsePaste() {
+  const raw = document.getElementById('paste-area').value;
+  if (!raw.trim()) {
+    document.getElementById('parse-result').innerHTML = '<p class="parse-err">Nothing pasted yet.</p>';
+    return;
+  }
+  const all = parseTrackerText(raw);
+  parsedHorses = all.slice(0, 7);
+
+  const el = document.getElementById('parse-result');
+  if (parsedHorses.length === 0) {
+    el.innerHTML = '<p class="parse-err">⚠ Could not parse any horses. Make sure you\'ve copied the full table including headers from the tracker.</p>';
+    document.getElementById('load-btn').style.display = 'none';
+    return;
+  }
+
+  const rows = parsedHorses.map((h,i) => `
+    <div class="parse-row">
+      <span class="pr-name">${i+1}. ${h.name}</span>
+      <span class="pr-odds">${h.odds} dec</span>
+      <span class="pr-ev">EV ${h.ev.toFixed(1)}%</span>
+      <span style="font-size:10px;color:var(--muted);margin-left:6px;">${h.race}</span>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="parse-preview">
+      <div class="parse-preview-title">Top ${parsedHorses.length} parsed — sorted by EV · adjust count with dropdown</div>
+      ${rows}
+    </div>`;
+  document.getElementById('load-btn').style.display = 'block';
+}
+
+function loadParsed() {
+  if (!parsedHorses.length) return;
+  // Always load all 7 — the dropdown controls how many are active in combos
+  S.numHorses = 7;
+  document.getElementById('num-horses').value = 7;
+  // Set decimal mode since tracker uses decimal odds
+  S.oddsFormat = 'decimal';
+  document.getElementById('odds-format').value = 'decimal';
+  // Fill horses
+  S.horses = parsedHorses.map(h => ({
+    name: h.name,
+    odds: String(h.odds),
+    fairWin: h.fairWin,
+    fairPlace: h.fairPlace,
+    terms: h.terms,
+    places: h.places,
+    race: h.race,
+    status: 'tbd'
+  }));
+  // Reset golfers to tbd
+  S.golfers.forEach(g => { g.status = 'tbd'; });
+  closePickModal();
+  render();
+  showToast(`✓ Loaded ${parsedHorses.length} horses`, 'ok');
+}
+
+// ─── SAVE MODAL ───────────────────────────────────────────────────────────────
+function openSaveModal() {
+  const combos = allCombos;
+  const comboCount = expectedCombos(combos);
+  const cost = comboCount * S.stake * 2;
+  const withEV = combos.filter(c => c.netEVpound !== null && !isNaN(c.netEVpound));
+  const totalNetEV = withEV.reduce((a,c) => a+c.netEVpound, 0);
+  const totalEVpct = cost > 0 ? (totalNetEV / cost) * 100 : 0;
+  const posEV = withEV.filter(c => c.netEVpound > 0).length;
+  const activeSels = [...S.golfers, ...S.horses].filter(s => parseFloat(s.odds) > 0);
+
+  const betTypeLabel = {2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType] || `${S.betType}-folds`;
+
+  document.getElementById('save-summary-content').innerHTML = `
+    <div class="save-summary">
+      <div class="save-summary-row"><span class="slbl">Bet type</span><span class="sval">${betTypeLabel} e/w</span></div>
+      <div class="save-summary-row"><span class="slbl">Selections</span><span class="sval">${activeSels.length} (${S.numGolfers}G + ${S.numHorses}H)</span></div>
+      <div class="save-summary-row"><span class="slbl">Combinations</span><span class="sval">${comboCount}</span></div>
+      <div class="save-summary-row"><span class="slbl">Slip cost</span><span class="sval">£${cost.toFixed(2)}</span></div>
+      ${withEV.length > 0 ? `<div class="save-summary-row"><span class="slbl">Total EV</span><span class="sval ${totalNetEV>=0?'pos':'neg'}">${totalNetEV>=0?'+':''}£${totalNetEV.toFixed(2)} (${totalEVpct>=0?'+':''}${totalEVpct.toFixed(1)}%)</span></div>` : ''}
+      ${withEV.length > 0 ? `<div class="save-summary-row"><span class="slbl">+EV combos</span><span class="sval">${posEV}/${comboCount}</span></div>` : ''}
+    </div>`;
+
+  document.getElementById('save-note').value = '';
+  document.getElementById('save-cost-actual').value = '';
+  document.getElementById('save-modal').classList.add('open');
+}
+function closeSaveModal() {
+  document.getElementById('save-modal').classList.remove('open');
+}
+
+// ─── INDEXEDDB DATABASE ───────────────────────────────────────────────────────
+let db = null;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) { resolve(db); return; }
+    const req = indexedDB.open('ReturnCalcDB', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('slips')) {
+        const store = d.createObjectStore('slips', { keyPath: 'id', autoIncrement: true });
+        store.createIndex('ts', 'ts', { unique: false });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e);
+  });
+}
+async function dbAdd(record) {
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction('slips', 'readwrite');
+    tx.objectStore('slips').add(record).onsuccess = e => resolve(e.target.result);
+    tx.onerror = reject;
+  });
+}
+async function dbGetAll() {
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = d.transaction('slips', 'readonly').objectStore('slips').getAll();
+    req.onsuccess = e => resolve(e.target.result.reverse()); // newest first
+    req.onerror = reject;
+  });
+}
+async function dbDelete(id) {
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction('slips', 'readwrite');
+    tx.objectStore('slips').delete(id).onsuccess = resolve;
+    tx.onerror = reject;
+  });
+}
+
+async function saveSlip() {
+  const combos = allCombos;
+  const comboCount = expectedCombos(combos);
+  const cost = comboCount * S.stake * 2;
+  const withEV = combos.filter(c => c.netEVpound !== null && !isNaN(c.netEVpound));
+  const totalNetEV = withEV.reduce((a,c) => a+c.netEVpound, 0);
+  const totalEVpct = cost > 0 ? (totalNetEV / cost) * 100 : 0;
+  const note = document.getElementById('save-note').value.trim();
+  const costActual = parseFloat(document.getElementById('save-cost-actual').value) || cost;
+  const betTypeLabel = {2:'Doubles',3:'Trebles',4:'4-folds',5:'5-folds'}[S.betType] || `${S.betType}-folds`;
+
+  const record = {
+    ts: Date.now(),
+    betType: S.betType,
+    betTypeLabel,
+    stake: S.stake,
+    numGolfers: S.numGolfers,
+    numHorses: S.numHorses,
+    golfers: JSON.parse(JSON.stringify(S.golfers)),
+    horses: JSON.parse(JSON.stringify(S.horses)),
+    comboCount,
+    cost: costActual,
+    totalEV: totalNetEV,
+    totalEVpct,
+    note,
+    status: 'pending', // pending / settled
+    actualReturn: null,
+    profit: null
+  };
+
+  try {
+    await dbAdd(record);
+    closeSaveModal();
+    showToast('✓ Slip saved!', 'ok');
+  } catch(e) {
+    showToast('⚠ Save failed', 'err');
+  }
+}
+
+// ─── HISTORY VIEW ─────────────────────────────────────────────────────────────
+async function openHistory() {
+  document.getElementById('history-view').classList.add('open');
+  await renderHistory();
+}
+function closeHistory() {
+  document.getElementById('history-view').classList.remove('open');
+}
+
+async function renderHistory() {
+  const slips = await dbGetAll();
+
+  // Stats
+  const totalCost = slips.reduce((a,s) => a + (s.cost||0), 0);
+  const totalEV = slips.reduce((a,s) => a + (s.totalEV||0), 0);
+  const settled = slips.filter(s => s.status === 'settled');
+  const totalProfit = settled.reduce((a,s) => a + (s.profit||0), 0);
+
+  document.getElementById('history-stats').innerHTML = `
+    <div class="hstat"><div class="hsl">Slips saved</div><div class="hsv neutral">${slips.length}</div></div>
+    <div class="hstat"><div class="hsl">Total staked</div><div class="hsv neutral">£${totalCost.toFixed(2)}</div></div>
+    <div class="hstat"><div class="hsl">Total EV</div><div class="hsv ${totalEV>=0?'pos':'neg'}">${totalEV>=0?'+':''}£${totalEV.toFixed(2)}</div></div>
+  `;
+
+  if (slips.length === 0) {
+    document.getElementById('history-slips').innerHTML = `
+      <div class="no-history">No slips saved yet.<br>Hit SAVE after filling in a slip.</div>`;
+    return;
+  }
+
+  document.getElementById('history-slips').innerHTML = slips.map(s => {
+    const d = new Date(s.ts);
+    const dateStr = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+                    d.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+    const allHorses = [...(s.golfers||[]), ...(s.horses||[])].filter(h => parseFloat(h.odds) > 0);
+    const evCls = (s.totalEV||0) >= 0 ? 'pos' : 'neg';
+    const evStr = s.totalEV != null ? `${s.totalEV>=0?'+':''}£${s.totalEV.toFixed(2)}` : '—';
+    const evPctStr = s.totalEVpct != null ? `${s.totalEVpct>=0?'+':''}${s.totalEVpct.toFixed(1)}%` : '—';
+
+    return `<div class="slip-card">
+      <div class="slip-top">
+        <div>
+          <div class="slip-label">${s.betTypeLabel} e/w · ${s.comboCount} combos · £${(s.cost||0).toFixed(2)}</div>
+          ${s.note ? `<div class="slip-note">${s.note}</div>` : ''}
+          <div class="slip-date">${dateStr}</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="smv ${evCls}" style="font-size:14px;font-weight:600;">${evStr}</div>
+          <div style="font-size:10px;color:var(--muted);">${evPctStr} EV</div>
+        </div>
+      </div>
+      <div class="slip-horses">
+        ${allHorses.map(h => `<span class="horse-chip">${h.name}</span>`).join('')}
+      </div>
+      <div class="slip-actions">
+        <button class="btn-load" onclick="loadSlip(${s.id})">↩ Load</button>
+        <button class="btn-del" onclick="deleteSlip(${s.id})">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadSlip(id) {
+  const slips = await dbGetAll();
+  const slip = slips.find(s => s.id === id);
+  if (!slip) return;
+  S.numGolfers = slip.numGolfers;
+  S.numHorses = slip.numHorses;
+  S.betType = slip.betType;
+  S.stake = slip.stake;
+  S.golfers = JSON.parse(JSON.stringify(slip.golfers));
+  S.horses = JSON.parse(JSON.stringify(slip.horses));
+  document.getElementById('num-golfers').value = S.numGolfers;
+  document.getElementById('num-horses').value = S.numHorses;
+  document.getElementById('bet-type').value = S.betType;
+  document.getElementById('stake').value = S.stake;
+  closeHistory();
+  render();
+  showToast('↩ Slip loaded', 'ok');
+}
+
+async function deleteSlip(id) {
+  if (!confirm('Delete this slip?')) return;
+  await dbDelete(id);
+  await renderHistory();
+  showToast('Deleted', 'ok');
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── COMBO BUILDER ───────────────────────────────────────────────────────────
 function buildCombos() {
-  // Include all selections — filter to valid odds inside combo building
   const allSels = [
     ...S.golfers.map((g,i) => ({
       ...g, type:'golfer', idx:i,
@@ -266,7 +725,8 @@ function buildCombos() {
       bookPO: toDecimal(h.odds) > 0 ? po(toDecimal(h.odds), h.terms||5) : 0,
       hasOdds: toDecimal(h.odds) > 0
     }))
-  ].filter(s => s.hasOdds); // only include slots where odds have been entered
+  ].filter(s => s.hasOdds);
+
   const n = S.betType;
   const combos = [];
 
@@ -276,76 +736,35 @@ function buildCombos() {
       const active = cur.filter(s => !isNR(s.status));
       const nrCount = cur.filter(s => isNR(s.status)).length;
       if (active.length < 2) return;
-
-      const hasG     = active.some(s => s.type==='golfer');
-      const lostAny  = active.some(s => s.status==='lose');
-      const placedAll= active.every(s => placed(s.status));
-      const wonAll   = active.every(s => won(s.status));
-
+      const hasG = active.some(s => s.type==='golfer');
+      const lostAny = active.some(s => s.status==='lose');
+      const placedAll = active.every(s => placed(s.status));
+      const wonAll = active.every(s => won(s.status));
       const placeOC = active.reduce((a,s) => a * (s.bookPO - 1), 1);
-      const winOC   = active.reduce((a,s) => a * s.fracOdds, 1);
+      const winOC = active.reduce((a,s) => a * s.fracOdds, 1);
       const placeRet = placedAll ? placeOC * S.stake : 0;
-      const winRet   = wonAll   ? winOC   * S.stake : 0;
-      const status   = lostAny ? 'dead' : placedAll ? (wonAll?'win':'place') : 'live';
-
-      // Compound place EV% = product of each leg's place EV% / 100 * 100
-      const allHavePEV = active.every(s => {
-        const terms = s.terms || 5;
-        return placeEVpct(s.odds, s.fairPlace, terms) !== null;
-      });
-      let compPlaceEV = null;
-      if (allHavePEV) {
-        compPlaceEV = active.reduce((a,s) => {
-          return a * (placeEVpct(s.odds, s.fairPlace, s.terms||5) / 100);
-        }, 1) * 100;
-      }
-
-      const allHaveWEV = active.every(s => winEVpct(s.odds, s.fairWin) !== null);
-      let compWinEV = null;
-      if (allHaveWEV) {
-        compWinEV = active.reduce((a,s) => {
-          return a * (winEVpct(s.odds, s.fairWin) / 100);
-        }, 1) * 100;
-      }
-
+      const winRet = wonAll ? winOC * S.stake : 0;
+      const status = lostAny ? 'dead' : placedAll ? (wonAll?'win':'place') : 'live';
       const legNames = {2:'Double',3:'Treble',4:'4-fold',5:'5-fold'};
 
-      // CORRECT EV for a multiple: compound probabilities × compound odds
-      // Win treble: true_prob1 × true_prob2 × true_prob3 × compound_win_odds
-      // Place treble: true_place_prob1 × true_place_prob2 × true_place_prob3 × compound_place_odds
-      // True win prob = 1 / fair_win_decimal
-      // True place prob = 1 / fair_place_decimal
-      const allHaveEV = active.every(s => {
-        const t = s.terms||5;
-        return parseFloat(s.fairPlace) > 0;
-      });
-      let netEVpound = null;
-      let winTrebleEVpct = null;
-      let placeTrebleEVpct = null;
-      if (allHaveEV) {
-        // Correct compound EV formula:
-        // Return = stake * product of (prob_i * odds_i) for each leg
-        // where prob = 1/fair_price, odds = book_price (full decimal)
-        // EV = Return - stake
+      const allHavePEV = active.every(s => placeEVpct(s.odds, s.fairPlace, s.terms||5) !== null);
+      let compPlaceEV = null;
+      if (allHavePEV) compPlaceEV = active.reduce((a,s) => a*(placeEVpct(s.odds,s.fairPlace,s.terms||5)/100),1)*100;
+      const allHaveWEV = active.every(s => winEVpct(s.odds, s.fairWin) !== null);
+      let compWinEV = null;
+      if (allHaveWEV) compWinEV = active.reduce((a,s) => a*(winEVpct(s.odds,s.fairWin)/100),1)*100;
 
-        // Place treble
-        // leg factor = (1/fair_place) * bookPO (decimal place odds)
-        const placeReturn = S.stake * active.reduce((a,s) => {
-          const fp = parseFloat(s.fairPlace);
-          return a * ((1/fp) * s.bookPO);
-        }, 1);
+      const allHaveEV = active.every(s => parseFloat(s.fairPlace) > 0);
+      let netEVpound=null, winTrebleEVpct=null, placeTrebleEVpct=null;
+
+      if (allHaveEV) {
+        const placeReturn = S.stake * active.reduce((a,s) => a*((1/parseFloat(s.fairPlace))*s.bookPO), 1);
         const placeTrebleEV = placeReturn - S.stake;
         placeTrebleEVpct = (placeTrebleEV / S.stake) * 100;
-
-        // Win treble
         const hasWinFair = active.every(s => parseFloat(s.fairWin) > 0);
         let winTrebleEV = -S.stake;
         if (hasWinFair) {
-          // leg factor = (1/fair_win) * book_win (full decimal)
-          const winReturn = S.stake * active.reduce((a,s) => {
-            const fw = parseFloat(s.fairWin);
-            return a * ((1/fw) * parseFloat(s.odds));
-          }, 1);
+          const winReturn = S.stake * active.reduce((a,s) => a*((1/parseFloat(s.fairWin))*parseFloat(s.odds)),1);
           winTrebleEV = winReturn - S.stake;
         }
         winTrebleEVpct = (winTrebleEV / S.stake) * 100;
@@ -365,18 +784,15 @@ function buildCombos() {
     for (let i=start; i<allSels.length; i++) comb(i+1, [...cur, allSels[i]]);
   }
   comb(0, []);
-  combos.sort((a,b) => (b.compPlaceEV??0) - (a.compPlaceEV??0) || b.placeRet - a.placeRet);
+  combos.sort((a,b) => (b.compPlaceEV??0)-(a.compPlaceEV??0) || b.placeRet-a.placeRet);
   return combos;
 }
 
-function sc(s) {
-  return s==='win'?'status-win':s==='place'?'status-place':s==='lose'?'status-lose':s==='nr'?'status-nr':'';
-}
-
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function sc(s) { return s==='win'?'status-win':s==='place'?'status-place':s==='lose'?'status-lose':s==='nr'?'status-nr':''; }
 function evPill(pct, label) {
   if (pct===null) return '';
-  const cls = pct >= 100 ? 'pos' : 'neg';
-  return `<span class="ev-pill ${cls}">${label}: ${pct.toFixed(1)}%</span>`;
+  return `<span class="ev-pill ${pct>=100?'pos':'neg'}">${label}: ${pct.toFixed(1)}%</span>`;
 }
 
 function renderSels() {
@@ -385,98 +801,83 @@ function renderSels() {
   document.getElementById('golfer-section').style.display = S.numGolfers===0 ? 'none' : '';
 
   document.getElementById('golfer-list').innerHTML = S.golfers.map((g,i) => {
-    const terms = g.terms || 5;
-    const places = g.places || 10;
-    const fracOdds = toDecimal(g.odds);
-    const bookPO = fracOdds > 0 ? po(fracOdds, terms) : null;
-    const wev = winEVpct(g.odds, g.fairWin||null);
-    const pev = placeEVpct(g.odds, g.fairPlace||null, terms);
+    const terms=g.terms||5, places=g.places||10;
+    const fracOdds=toDecimal(g.odds);
+    const bookPO=fracOdds>0?po(fracOdds,terms):null;
+    const wev=winEVpct(g.odds,g.fairWin||null);
+    const pev=placeEVpct(g.odds,g.fairPlace||null,terms);
     return `<div class="sel-row is-golfer ${sc(g.status)}">
       <div class="sel-top">
         <input type="text" value="${g.name}" data-t="golfer" data-i="${i}" data-f="name">
         <span class="type-tag golfer">GOLF</span>
       </div>
       <div class="fields-row cols4">
-        <div class="field"><label>Book Win</label>
-          <input type="number" value="${g.odds}" min="1" step="1" data-t="golfer" data-i="${i}" data-f="odds"></div>
-        <div class="field"><label>Win Fair</label>
-          <input type="number" value="${g.fairWin||''}" min="1" step="1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairWin"></div>
-        <div class="field"><label>Place Fair</label>
-          <input type="number" value="${g.fairPlace||''}" min="1" step="0.1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairPlace"></div>
-        <div class="field"><label>Result</label>
-          <select data-t="golfer" data-i="${i}" data-f="status">
-            <option value="tbd" ${g.status==='tbd'?'selected':''}>?</option>
-            <option value="win" ${g.status==='win'?'selected':''}>W Won</option>
-            <option value="place" ${g.status==='place'?'selected':''}>P Place</option>
-            <option value="lose" ${g.status==='lose'?'selected':''}>X Lost</option>
-          </select></div>
+        <div class="field"><label>Book Win</label><input type="number" value="${g.odds}" min="1" step="1" data-t="golfer" data-i="${i}" data-f="odds"></div>
+        <div class="field"><label>Win Fair</label><input type="number" value="${g.fairWin||''}" min="1" step="1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairWin"></div>
+        <div class="field"><label>Place Fair</label><input type="number" value="${g.fairPlace||''}" min="1" step="0.1" placeholder="—" data-t="golfer" data-i="${i}" data-f="fairPlace"></div>
+        <div class="field"><label>Result</label><select data-t="golfer" data-i="${i}" data-f="status">
+          <option value="tbd" ${g.status==='tbd'?'selected':''}>?</option>
+          <option value="win" ${g.status==='win'?'selected':''}>W Won</option>
+          <option value="place" ${g.status==='place'?'selected':''}>P Place</option>
+          <option value="lose" ${g.status==='lose'?'selected':''}>X Lost</option>
+        </select></div>
       </div>
       <div class="fields-row cols3">
-        <div class="field"><label>Place terms</label>
-          <select data-t="golfer" data-i="${i}" data-f="terms">
-            <option value="4" ${terms==4?'selected':''}>1/4 odds</option>
-            <option value="5" ${terms==5?'selected':''}>1/5 odds</option>
-          </select></div>
-        <div class="field"><label>Places paid</label>
-          <select data-t="golfer" data-i="${i}" data-f="places">
-            <option value="5" ${places==5?'selected':''}>5 places</option>
-            <option value="6" ${places==6?'selected':''}>6 places</option>
-            <option value="8" ${places==8?'selected':''}>8 places</option>
-            <option value="10" ${places==10?'selected':''}>10 places</option>
-            <option value="12" ${places==12?'selected':''}>12 places</option>
-          </select></div>
-        <div class="field"><label>Pl odds</label>
-          <div style="font-size:12px;color:var(--green);padding-top:8px;">${bookPO ? bookPO.toFixed(2)+'/1' : '—'}</div></div>
+        <div class="field"><label>Place terms</label><select data-t="golfer" data-i="${i}" data-f="terms">
+          <option value="4" ${terms==4?'selected':''}>1/4 odds</option>
+          <option value="5" ${terms==5?'selected':''}>1/5 odds</option>
+        </select></div>
+        <div class="field"><label>Places paid</label><select data-t="golfer" data-i="${i}" data-f="places">
+          <option value="5" ${places==5?'selected':''}>5</option><option value="6" ${places==6?'selected':''}>6</option>
+          <option value="8" ${places==8?'selected':''}>8</option><option value="10" ${places==10?'selected':''}>10</option>
+          <option value="12" ${places==12?'selected':''}>12</option>
+        </select></div>
+        <div class="field"><label>Pl odds</label><div style="font-size:12px;color:var(--green);padding-top:8px;">${bookPO?bookPO.toFixed(2)+'/1':'—'}</div></div>
       </div>
-      <div class="ev-strip">
-        ${evPill(wev, 'Win EV')}
-        ${evPill(pev, 'Place EV')}
-      </div>
+      <div class="ev-strip">${evPill(wev,'Win EV')}${evPill(pev,'Place EV')}</div>
     </div>`;
   }).join('');
 
   document.getElementById('horse-list').innerHTML = S.horses.map((h,i) => {
-    const terms = h.terms||5;
-    const fracOdds = toDecimal(h.odds);
-    const bookPO = fracOdds > 0 ? po(fracOdds, terms) : null;
-    const wev = winEVpct(h.odds, h.fairWin||null);
-    const pev = placeEVpct(h.odds, h.fairPlace||null, terms);
-    const plPill = h.status==='nr' ? 'NR' : bookPO ? bookPO.toFixed(2)+'/1' : '—';
+    const terms=h.terms||5;
+    const fracOdds=toDecimal(h.odds);
+    const bookPO=fracOdds>0?po(fracOdds,terms):null;
+    const wev=winEVpct(h.odds,h.fairWin||null);
+    const pev=placeEVpct(h.odds,h.fairPlace||null,terms);
+    const plPill=h.status==='nr'?'NR':bookPO?bookPO.toFixed(2)+'/1':'—';
+    const raceTag = h.race ? `<span class="race-tag">${h.race}</span>` : '';
+    const netLeg = (pev!==null) ? (((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake)) : null;
     return `<div class="sel-row is-horse ${sc(h.status)}">
       <div class="sel-top">
         <input type="text" value="${h.name}" data-t="horse" data-i="${i}" data-f="name">
+        ${raceTag}
         <span class="type-tag horse">HORSE</span>
       </div>
       <div class="fields-row cols4">
-        <div class="field"><label>Book Win</label>
-          <input type="number" value="${h.odds}" min="1" step="1" data-t="horse" data-i="${i}" data-f="odds"></div>
-        <div class="field"><label>Win Fair</label>
-          <input type="number" value="${h.fairWin||''}" min="1" step="1" placeholder="—" data-t="horse" data-i="${i}" data-f="fairWin"></div>
-        <div class="field"><label>Place Fair</label>
-          <input type="number" value="${h.fairPlace||''}" min="1" step="0.1" placeholder="—" data-t="horse" data-i="${i}" data-f="fairPlace"></div>
-        <div class="field"><label>Terms</label>
-          <select data-t="horse" data-i="${i}" data-f="terms">
-            <option value="4" ${terms==4?'selected':''}>1/4</option>
-            <option value="5" ${terms==5?'selected':''}>1/5</option>
-            <option value="3" ${terms==3?'selected':''}>1/3</option>
-          </select></div>
+        <div class="field"><label>Book Win</label><input type="number" value="${h.odds}" min="1" step="1" data-t="horse" data-i="${i}" data-f="odds"></div>
+        <div class="field"><label>Win Fair</label><input type="number" value="${h.fairWin||''}" min="1" step="1" placeholder="—" data-t="horse" data-i="${i}" data-f="fairWin"></div>
+        <div class="field"><label>Place Fair</label><input type="number" value="${h.fairPlace||''}" min="1" step="0.1" placeholder="—" data-t="horse" data-i="${i}" data-f="fairPlace"></div>
+        <div class="field"><label>Terms</label><select data-t="horse" data-i="${i}" data-f="terms">
+          <option value="4" ${terms==4?'selected':''}>1/4</option>
+          <option value="5" ${terms==5?'selected':''}>1/5</option>
+          <option value="3" ${terms==3?'selected':''}>1/3</option>
+        </select></div>
       </div>
       <div class="fields-row cols3">
-        <div class="field"><label>Result</label>
-          <select data-t="horse" data-i="${i}" data-f="status">
-            <option value="tbd" ${h.status==='tbd'?'selected':''}>?</option>
-            <option value="win" ${h.status==='win'?'selected':''}>W Won</option>
-            <option value="place" ${h.status==='place'?'selected':''}>P Place</option>
-            <option value="lose" ${h.status==='lose'?'selected':''}>X Lost</option>
-            <option value="nr" ${h.status==='nr'?'selected':''}>NR Void</option>
-          </select></div>
+        <div class="field"><label>Result</label><select data-t="horse" data-i="${i}" data-f="status">
+          <option value="tbd" ${h.status==='tbd'?'selected':''}>?</option>
+          <option value="win" ${h.status==='win'?'selected':''}>W Won</option>
+          <option value="place" ${h.status==='place'?'selected':''}>P Place</option>
+          <option value="lose" ${h.status==='lose'?'selected':''}>X Lost</option>
+          <option value="nr" ${h.status==='nr'?'selected':''}>NR Void</option>
+        </select></div>
         <div class="field"><label>Pl odds</label>
-          <div style="font-size:12px;padding-top:8px;color:${h.status!=='lose'&&h.status!=='nr'?'var(--green)':'var(--muted)'};">${plPill}</div></div>
+          <div style="font-size:12px;padding-top:8px;color:${h.status!=='lose'&&h.status!=='nr'?'var(--green)':'var(--muted)'};">${plPill}</div>
+        </div>
         <div class="field">
           <div class="ev-strip" style="margin-top:8px;">
-            ${evPill(wev,'Win')}
-            ${evPill(pev,'Pl')}
-            ${(pev!==null)?`<span class="ev-pill ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'pos':'neg'}">Net/leg: ${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake))>=0?'+':''}£${(((wev!==null?(wev-100)/100:-1)*S.stake)+((pev-100)/100*S.stake)).toFixed(2)}</span>`:''}
+            ${evPill(wev,'Win')}${evPill(pev,'Pl')}
+            ${netLeg!==null?`<span class="ev-pill ${netLeg>=0?'pos':'neg'}">Net: ${netLeg>=0?'+':''}£${netLeg.toFixed(2)}</span>`:''}
           </div>
         </div>
       </div>
@@ -484,49 +885,35 @@ function renderSels() {
   }).join('');
 }
 
-function nCr(n, k) {
-  if (k > n) return 0;
-  if (k === 0 || k === n) return 1;
-  let r = 1;
-  for (let i = 0; i < k; i++) { r = r * (n - i) / (i + 1); }
-  return Math.round(r);
+function nCr(n,k) {
+  if(k>n) return 0; if(k===0||k===n) return 1;
+  let r=1; for(let i=0;i<k;i++){r=r*(n-i)/(i+1);} return Math.round(r);
 }
-
 function expectedCombos(actualCombos) {
-  // If we have actual combos built, use that count
-  if (actualCombos && actualCombos.length > 0) return actualCombos.length;
-  // Otherwise estimate from dropdowns
-  const totalSels = S.numGolfers + S.numHorses;
-  const n = S.betType;
-  if (totalSels < n) return 0;
-  if (S.numGolfers < 2) return nCr(totalSels, n);
-  const allCombos = nCr(totalSels, n);
-  const twoGolferCombos = nCr(S.numGolfers, 2) * nCr(S.numHorses, n - 2);
-  return allCombos - twoGolferCombos;
+  if(actualCombos&&actualCombos.length>0) return actualCombos.length;
+  const totalSels=S.numGolfers+S.numHorses, n=S.betType;
+  if(totalSels<n) return 0;
+  if(S.numGolfers<2) return nCr(totalSels,n);
+  return nCr(totalSels,n) - nCr(S.numGolfers,2)*nCr(S.numHorses,n-2);
 }
 
 function renderMetrics(combos) {
-  const s = S.stake;
-  // Use expected combo count for cost so it shows even with empty odds
-  const comboCount = expectedCombos(combos);
-  const cost = comboCount * s * 2;
-  const placeRet = combos.reduce((a,c)=>a+c.placeRet,0);
-  const winRet   = combos.reduce((a,c)=>a+c.winRet,0);
-  const total    = placeRet + winRet;
-  const profit   = total - cost;
-  const live     = combos.filter(c=>c.livePlace&&c.status!=='dead').length;
-  const withEV     = combos.filter(c=>c.netEVpound!==null&&!isNaN(c.netEVpound));
-  const totalNetEV = withEV.reduce((a,c)=>a+c.netEVpound, 0);
-  const totalEVpct = cost > 0 ? (totalNetEV / cost) * 100 : 0;
-  const hasAnyEV   = withEV.length > 0;
-  const posEVcount = withEV.filter(c=>c.netEVpound>0).length;
-
-  document.getElementById('hcost').textContent = '£'+cost.toFixed(2);
-  document.getElementById('metrics').innerHTML = `
+  const comboCount=expectedCombos(combos);
+  const cost=comboCount*S.stake*2;
+  const placeRet=combos.reduce((a,c)=>a+c.placeRet,0);
+  const winRet=combos.reduce((a,c)=>a+c.winRet,0);
+  const total=placeRet+winRet, profit=total-cost;
+  const withEV=combos.filter(c=>c.netEVpound!==null&&!isNaN(c.netEVpound));
+  const totalNetEV=withEV.reduce((a,c)=>a+c.netEVpound,0);
+  const totalEVpct=cost>0?(totalNetEV/cost)*100:0;
+  const hasAnyEV=withEV.length>0;
+  const posEVcount=withEV.filter(c=>c.netEVpound>0).length;
+  document.getElementById('hcost').textContent='£'+cost.toFixed(2);
+  document.getElementById('metrics').innerHTML=`
     <div class="metric"><div class="ml">Slip cost</div><div class="mv neutral">£${cost.toFixed(2)}</div></div>
     <div class="metric"><div class="ml">Combinations</div><div class="mv neutral">${comboCount}</div></div>
     <div class="metric"><div class="ml">Place return</div><div class="mv ${placeRet>0?'pos':'neutral'}">£${placeRet.toFixed(2)}</div></div>
-    <div class="metric"><div class="ml">Win return</div><div class="mv ${winRet>0?'pos':'neutral'}">£${winRet.toFixed(2)}</div></div>
+    <div class="metric"><div class="mv ${winRet>0?'pos':'neutral'}">£${winRet.toFixed(2)}</div><div class="ml">Win return</div></div>
     <div class="metric"><div class="ml">Total return</div><div class="mv ${total>0?'pos':'neutral'}">£${total.toFixed(2)}</div></div>
     <div class="metric"><div class="ml">Profit/loss</div><div class="mv ${profit>0?'pos':profit<0?'neg':'neutral'}">${profit>=0?'+':''}£${profit.toFixed(2)}</div></div>
     ${hasAnyEV?`<div class="metric"><div class="ml">Total EV £</div><div class="mv ${totalNetEV>=0?'pos':'neg'}">${totalNetEV>=0?'+':''}£${totalNetEV.toFixed(2)}</div></div>`:''}
@@ -537,13 +924,13 @@ function renderMetrics(combos) {
 
 function getFiltered(combos) {
   let f=[...combos];
-  if(S.filter==='live')   f=f.filter(c=>c.livePlace&&c.status!=='dead');
+  if(S.filter==='live') f=f.filter(c=>c.livePlace&&c.status!=='dead');
   else if(S.filter==='placed') f=f.filter(c=>c.status==='place'||c.status==='win');
   else if(S.filter==='golfer') f=f.filter(c=>c.hasGolfer);
-  else if(S.filter==='horse')  f=f.filter(c=>!c.hasGolfer);
-  else if(S.filter==='evpos')  f=f.filter(c=>c.compPlaceEV!==null&&c.compPlaceEV>=100);
-  else if(S.filter==='nr')     f=f.filter(c=>c.nrCount>0);
-  else if(S.filter==='top')    f=f.slice(0,20);
+  else if(S.filter==='horse') f=f.filter(c=>!c.hasGolfer);
+  else if(S.filter==='evpos') f=f.filter(c=>c.compPlaceEV!==null&&c.compPlaceEV>=100);
+  else if(S.filter==='nr') f=f.filter(c=>c.nrCount>0);
+  else if(S.filter==='top') f=f.slice(0,20);
   return f;
 }
 
@@ -552,96 +939,53 @@ function renderCombos(combos) {
   const live=combos.filter(c=>c.livePlace&&c.status!=='dead').length;
   const placed=combos.filter(c=>c.status==='place'||c.status==='win').length;
   const evpos=combos.filter(c=>c.compPlaceEV!==null&&c.compPlaceEV>=100).length;
-  document.getElementById('sbar').textContent=
-    `${combos.length} combos — ${live} live — ${placed} cashed — ${evpos} +EV`;
-
+  document.getElementById('sbar').textContent=`${combos.length} combos — ${live} live — ${placed} cashed — ${evpos} +EV`;
   document.getElementById('combos').innerHTML=vis.map(c=>{
     const isDead=c.status==='dead';
     const statLabel=c.status==='win'?'W+P':c.status==='place'?'P':c.status==='dead'?'DEAD':'LIVE';
     const statClass=c.status==='win'?'win':c.status==='place'?'pos':c.status==='dead'?'dead':'live';
-    const netStr = (c.netEVpound!=null&&!isNaN(c.netEVpound)) ? (c.netEVpound>=0?'+':'')+'£'+c.netEVpound.toFixed(2) : '—';
-    const netCls = (c.netEVpound!=null&&!isNaN(c.netEVpound)) ? (c.netEVpound>=0?'pos':'neg') : 'muted';
-    // Net EV% = netEVpound / (stake*2) * 100
-    const netEvPct = (c.netEVpound!=null&&!isNaN(c.netEVpound)) ? (c.netEVpound / (S.stake*2)) * 100 : null;
-    const netEvPctStr = netEvPct!==null ? (netEvPct>=0?'+':'')+netEvPct.toFixed(1)+'%' : '—';
-    const netEvPctCls = netEvPct!==null ? (netEvPct>=0?'pos':'neg') : 'muted';
-    const nrBadge=c.nrCount>0?`<div class="nr-tag">NR void → ${c.betLabel}</div>`:'';
+    const netStr=(c.netEVpound!=null&&!isNaN(c.netEVpound))?(c.netEVpound>=0?'+':'')+'£'+c.netEVpound.toFixed(2):'—';
+    const netCls=(c.netEVpound!=null&&!isNaN(c.netEVpound))?(c.netEVpound>=0?'pos':'neg'):'muted';
+    const netEvPct=(c.netEVpound!=null&&!isNaN(c.netEVpound))?(c.netEVpound/(S.stake*2))*100:null;
+    const netEvPctStr=netEvPct!==null?(netEvPct>=0?'+':'')+netEvPct.toFixed(1)+'%':'—';
+    const netEvPctCls=netEvPct!==null?(netEvPct>=0?'pos':'neg'):'muted';
     return `<div class="combo-card ${c.hasGolfer?'has-golfer':''} ${isDead?'dead':''} ${c.nrCount>0&&!isDead?'has-nr':''}" style="${isDead?'opacity:0.3;':''}">
-      ${nrBadge}
+      ${c.nrCount>0?`<div class="nr-tag">NR void → ${c.betLabel}</div>`:''}
       <div class="combo-name">${c.name}</div>
       <div class="combo-stats">
         <div class="cstat"><div class="csl">Status</div><div class="csv ${statClass}">${statLabel}</div></div>
         <div class="cstat"><div class="csl">Win EV%</div><div class="csv ${c.winTrebleEVpct!=null?(c.winTrebleEVpct>=0?'pos':'neg'):'muted'}">${c.winTrebleEVpct!=null?(c.winTrebleEVpct>=0?'+':'')+c.winTrebleEVpct.toFixed(0)+'%':'—'}</div></div>
-        <div class="cstat"><div class="csl">Place EV%</div><div class="csv ${c.placeTrebleEVpct!=null?(c.placeTrebleEVpct>=0?'pos':'neg'):'muted'}">${c.placeTrebleEVpct!=null?(c.placeTrebleEVpct>=0?'+':'')+c.placeTrebleEVpct.toFixed(0)+'%':'—'}</div></div>
+        <div class="cstat"><div class="csl">Pl EV%</div><div class="csv ${c.placeTrebleEVpct!=null?(c.placeTrebleEVpct>=0?'pos':'neg'):'muted'}">${c.placeTrebleEVpct!=null?(c.placeTrebleEVpct>=0?'+':'')+c.placeTrebleEVpct.toFixed(0)+'%':'—'}</div></div>
         <div class="cstat"><div class="csl">Net EV%</div><div class="csv ${netEvPctCls}">${netEvPctStr}</div></div>
         <div class="cstat"><div class="csl">Net EV £</div><div class="csv ${netCls}">${netStr}</div></div>
-        <div class="cstat"><div class="csl">Pl odds</div><div class="csv muted">${c.placeOC.toFixed(0)}/1</div></div>
       </div>
     </div>`;
   }).join('');
 }
 
 function renderSelSummary() {
-  const el = document.getElementById('sel-summary');
-  const allActive = [
-    ...S.golfers.map((g,i) => ({...g, type:'golfer', idx:i})),
-    ...S.horses.map((h,i) => ({...h, type:'horse', idx:i}))
-  ].filter(s => parseFloat(s.odds) > 0);
-
-  if (allActive.length === 0) { el.innerHTML = ''; return; }
-
-  const rows = allActive.map(s => {
-    const isG = s.type === 'golfer';
-    const terms = isG ? (s.terms||5) : (s.terms||5);
-    const frac = toFrac(s.odds);
-    const bookPO = frac > 0 ? po(frac, terms) : null;
-    const wev = winEVpct(s.odds, s.fairWin);
-    const pev = placeEVpct(s.odds, s.fairPlace, terms);
-    const wEVp = wev !== null ? ((wev-100)/100)*S.stake : null;
-    const pEVp = pev !== null ? ((pev-100)/100)*S.stake : null;
-    const netEV = (wEVp !== null && pEVp !== null) ? wEVp + pEVp : (pEVp !== null ? ((toFrac(s.odds)>0?-1:0)*S.stake + pEVp) : null);
-
-    const fairWinStr = parseFloat(s.fairWin) > 0 ? parseFloat(s.fairWin) : '—';
-    const fairPlStr = parseFloat(s.fairPlace) > 0 ? parseFloat(s.fairPlace) : '—';
-    const bookPOStr = bookPO ? bookPO.toFixed(1) : '—';
-
-    const wEvStr = wev !== null ? `<span class="${wev>=100?'ss-pos':'ss-neg'}">${wev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
-    const pEvStr = pev !== null ? `<span class="${pev>=100?'ss-pos':'ss-neg'}">${pev.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
-    // Net EV% = (win EV£ + place EV£) / (stake * 2) * 100
-    // stake*2 = total e/w cost per selection
-    const wEVp2 = wev !== null ? ((wev-100)/100)*S.stake : -S.stake;
-    const pEVp2 = pev !== null ? ((pev-100)/100)*S.stake : null;
-    const netEVpct = pEVp2 !== null ? ((wEVp2 + pEVp2) / (S.stake*2)) * 100 : null;
-    const netStr = netEVpct !== null ? `<span class="${netEVpct>=0?'ss-pos':'ss-neg'}">${netEVpct>=0?'+':''}${netEVpct.toFixed(1)}%</span>` : '<span class="ss-muted">—</span>';
-
-    const label = isG ? `${s.name}` : s.name;
-    const rowClass = isG ? 'g-row' : 'h-row';
-
-    return `<tr class="${rowClass}">
-      <td class="label">${label}${isG?` <span style="font-size:9px;color:var(--blue);">GOLF</span>`:''}</td>
-      <td>${s.odds} / ${fairWinStr}</td>
-      <td>${bookPOStr} / ${fairPlStr}</td>
-      <td>${wEvStr}</td>
-      <td>${pEvStr}</td>
-      <td>${netStr}</td>
+  const el=document.getElementById('sel-summary');
+  const allActive=[...S.golfers.map((g,i)=>({...g,type:'golfer',idx:i})),...S.horses.map((h,i)=>({...h,type:'horse',idx:i}))].filter(s=>parseFloat(s.odds)>0);
+  if(allActive.length===0){el.innerHTML='';return;}
+  const rows=allActive.map(s=>{
+    const isG=s.type==='golfer', terms=s.terms||5;
+    const frac=toFrac(s.odds), bookPO=frac>0?po(frac,terms):null;
+    const wev=winEVpct(s.odds,s.fairWin), pev=placeEVpct(s.odds,s.fairPlace,terms);
+    const wEVp2=wev!==null?((wev-100)/100)*S.stake:-S.stake;
+    const pEVp2=pev!==null?((pev-100)/100)*S.stake:null;
+    const netEVpct=pEVp2!==null?((wEVp2+pEVp2)/(S.stake*2))*100:null;
+    return `<tr class="${isG?'g-row':'h-row'}">
+      <td class="label">${s.name}${isG?` <span style="font-size:9px;color:var(--blue);">GOLF</span>`:''}</td>
+      <td>${s.odds} / ${parseFloat(s.fairWin)>0?parseFloat(s.fairWin):'—'}</td>
+      <td>${bookPO?bookPO.toFixed(1):'—'} / ${parseFloat(s.fairPlace)>0?parseFloat(s.fairPlace):'—'}</td>
+      <td>${wev!==null?`<span class="${wev>=100?'ss-pos':'ss-neg'}">${wev.toFixed(1)}%</span>`:'<span class="ss-muted">—</span>'}</td>
+      <td>${pev!==null?`<span class="${pev>=100?'ss-pos':'ss-neg'}">${pev.toFixed(1)}%</span>`:'<span class="ss-muted">—</span>'}</td>
+      <td>${netEVpct!==null?`<span class="${netEVpct>=0?'ss-pos':'ss-neg'}">${netEVpct>=0?'+':''}${netEVpct.toFixed(1)}%</span>`:'<span class="ss-muted">—</span>'}</td>
     </tr>`;
   }).join('');
-
-  el.innerHTML = `<div class="sel-summary">
-    <table class="sel-summary-table">
-      <thead>
-        <tr>
-          <th>Selection</th>
-          <th>Win / Fair</th>
-          <th>Place / Fair</th>
-          <th>Win EV</th>
-          <th>Place EV</th>
-          <th>Net EV%</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </div>`;
+  el.innerHTML=`<div class="sel-summary"><table class="sel-summary-table">
+    <thead><tr><th>Selection</th><th>Win / Fair</th><th>Pl / Fair</th><th>Win EV</th><th>Pl EV</th><th>Net EV%</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
 }
 
 function render() {
@@ -652,6 +996,7 @@ function render() {
   renderCombos(allCombos);
 }
 
+// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
 document.addEventListener('change', e=>{
   const el=e.target;
   if(el.id==='num-golfers'){S.numGolfers=parseInt(el.value);render();return;}
@@ -680,6 +1025,19 @@ document.addEventListener('click', e=>{
   S.filter=btn.dataset.filter;
   document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('active',b===btn));
   renderCombos(allCombos);
+});
+
+// Close modals on overlay click
+document.getElementById('pick-modal').addEventListener('click', e=>{
+  if(e.target===e.currentTarget) closePickModal();
+});
+document.getElementById('save-modal').addEventListener('click', e=>{
+  if(e.target===e.currentTarget) closeSaveModal();
+});
+
+// Live parse on paste
+document.getElementById('paste-area').addEventListener('paste', ()=>{
+  setTimeout(parsePaste, 50);
 });
 
 render();
