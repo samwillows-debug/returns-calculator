@@ -509,7 +509,6 @@ function parseTrackerText(raw) {
 
 // ─── ROTATE ───────────────────────────────────────────────────────────────────
 function weightedSample(pool,n,mode) {
-  if(pool.length<=n) return [...pool];
   const ranked=[...pool];
   if(mode==='plev') {
     ranked.sort((a,b)=>{
@@ -521,15 +520,14 @@ function weightedSample(pool,n,mode) {
   const weights=ranked.map((_,i)=>mode==='plev'?(ranked.length-i):1);
   const available=ranked.map((h,i)=>({h,w:weights[i]}));
   const selected=[];
-  const usedRaces=new Set(); // prevent 2 horses from same race
+  const usedRaces=new Set();
   for(let pick=0;pick<n&&available.length>0;pick++) {
-    // Filter out horses whose race is already used
     const eligible=available.filter(x=>!x.h.race||!usedRaces.has(x.h.race));
-    const pool2=eligible.length>0?eligible:available; // fallback if all races clash
-    let r=Math.random()*pool2.reduce((a,x)=>a+x.w,0);
+    if(eligible.length===0) break; // strict — never break race rule
+    let r=Math.random()*eligible.reduce((a,x)=>a+x.w,0);
     let idx=0;
-    for(let j=0;j<pool2.length;j++){r-=pool2[j].w;if(r<=0){idx=j;break;}}
-    const chosen=pool2[idx];
+    for(let j=0;j<eligible.length;j++){r-=eligible[j].w;if(r<=0){idx=j;break;}}
+    const chosen=eligible[idx];
     selected.push(chosen.h);
     if(chosen.h.race) usedRaces.add(chosen.h.race);
     const globalIdx=available.indexOf(chosen);
@@ -609,7 +607,7 @@ function parsePaste() {
     const plEvStr=plEV?` · PlEV ${plEV.toFixed(0)}%`:'';
     return `<div class="parse-row"><span class="pr-name">${i+1}. ${h.name}</span><span class="pr-odds">${h.odds}</span><span class="pr-ev">EV ${h.ev.toFixed(1)}%${plEvStr}</span><span style="font-size:10px;color:var(--muted);">${h.race}</span></div>`;
   };
-  let html=`<div class="parse-preview"><div class="parse-preview-title">${all.length} horses parsed · top ${show.length} load first</div>${show.map((h,i)=>makeRow(h,i)).join('')}`;
+  let html=`<div class="parse-preview"><div class="parse-preview-title">${all.length} horses parsed (up to 30) · top ${show.length} by EV load first</div>${show.map((h,i)=>makeRow(h,i)).join('')}`;
   if(rest.length) html+=`<div class="parse-section-label">Also in pool (rotate to use)</div>${rest.map((h,i)=>makeRow(h,show.length+i)).join('')}`;
   el.innerHTML=html+'</div>';
   document.getElementById('load-btn').style.display='block';
@@ -1229,7 +1227,10 @@ function topEVSample(pool, n) {
     const selNames=new Set(selected.map(h=>h.name));
     for(const h of ranked){
       if(selected.length>=n) break;
-      if(!selNames.has(h.name)){selected.push(h);selNames.add(h.name);}
+      if(!selNames.has(h.name)&&(!h.race||!usedRaces.has(h.race))){
+        selected.push(h);selNames.add(h.name);
+        if(h.race) usedRaces.add(h.race);
+      }
     }
   }
   return selected;
@@ -1247,7 +1248,13 @@ function highOddsSample(pool, n) {
   }
   if(selected.length<n){
     const selNames=new Set(selected.map(h=>h.name));
-    for(const h of ranked){if(selected.length>=n)break;if(!selNames.has(h.name)){selected.push(h);selNames.add(h.name);}}
+    for(const h of ranked){
+      if(selected.length>=n) break;
+      if(!selNames.has(h.name)&&(!h.race||!usedRaces.has(h.race))){
+        selected.push(h);selNames.add(h.name);
+        if(h.race) usedRaces.add(h.race);
+      }
+    }
   }
   return selected;
 }
@@ -1287,11 +1294,11 @@ function contrarianSample(pool, n, avoidNames) {
   const selected=[], usedRaces=new Set();
   for(let pick=0;pick<n&&available.length>0;pick++){
     const eligible=available.filter(x=>!x.h.race||!usedRaces.has(x.h.race));
-    const pool2=eligible.length>0?eligible:available;
-    let r=Math.random()*pool2.reduce((a,x)=>a+x.w,0);
+    if(eligible.length===0) break; // strict — never pick same race twice
+    let r=Math.random()*eligible.reduce((a,x)=>a+x.w,0);
     let idx=0;
-    for(let j=0;j<pool2.length;j++){r-=pool2[j].w;if(r<=0){idx=j;break;}}
-    const chosen=pool2[idx];
+    for(let j=0;j<eligible.length;j++){r-=eligible[j].w;if(r<=0){idx=j;break;}}
+    const chosen=eligible[idx];
     selected.push(chosen.h);
     if(chosen.h.race) usedRaces.add(chosen.h.race);
     const gi=available.indexOf(chosen);
